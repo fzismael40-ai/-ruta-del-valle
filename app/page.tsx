@@ -319,8 +319,8 @@ export default function Home() {
             <p className="text-forest/60">
               La bajada —de Hotel Valle Grande a Av. 19— es el tramo crítico: cada unidad sale llena y son
               los vecinos de El Playón quienes esperan camino abajo. La subida sirve sobre todo a profesores,
-              estudiantes y trabajadores que van hacia el centro. Un mismo dato de ocupación se traduce
-              distinto según quién lo mire.
+              estudiantes y trabajadores que viven en el centro y suben hasta El Valle por trabajo o estudio.
+              Un mismo dato de ocupación se traduce distinto según quién lo mire.
             </p>
           </div>
 
