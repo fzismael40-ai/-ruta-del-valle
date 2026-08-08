@@ -171,8 +171,10 @@ export default function Home() {
       const nuevaLista = nuevoSentido === "ida" ? paradasIda : paradasVuelta;
       const primera = nuevaLista.find((p) => (nuevoSentido === "ida" ? p.orden : p.orden_vuelta) === 1);
 
-      // Cada bus sale lleno desde El Valle (Hotel Valle Grande): es la condición
-      // que impone la comunidad para garantizar el regreso de sus habitantes.
+      // El bus sale casi vacío desde Hotel Valle Grande; a veces lo abarca un
+      // grupo moderado del hotel que baja a trabajar o estudiar. Se va llenando
+      // en el camino y por eso el refuerzo se activa solo (ver bump()) cuando
+      // llega a capacidad, no desde la salida.
       const saleDesdeElValle = nuevoSentido === "vuelta";
 
       await supabase
@@ -181,9 +183,9 @@ export default function Home() {
           sentido: nuevoSentido,
           parada_orden: 1,
           parada_actual: primera?.nombre ?? miBus.parada_actual,
-          ocupacion_actual: saleDesdeElValle ? miBus.capacidad_total : 0,
-          necesita_refuerzo: saleDesdeElValle,
-          refuerzo_desde: saleDesdeElValle ? new Date().toISOString() : null,
+          ocupacion_actual: saleDesdeElValle ? 2 : 0,
+          necesita_refuerzo: false,
+          refuerzo_desde: null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", miBus.id);
@@ -274,13 +276,14 @@ export default function Home() {
             Ruta del Valle · El Playón, Mérida
           </span>
           <h1 className="font-display text-4xl sm:text-5xl text-forest leading-tight mb-6">
-            El problema no es subir. Es que el bus <span className="text-terracotta">ya baja lleno</span>.
+            El problema no es subir. Es que el bus <span className="text-terracotta">se llena a medio camino</span>.
           </h1>
           <p className="text-forest/70 text-lg mb-10 max-w-xl mx-auto">
-            Cada unidad sale llena desde Hotel Valle Grande — la condición que exige la comunidad para
-            garantizar el regreso de cada familia de El Playón. Ruta del Valle muestra en tiempo real dónde
-            va cada bus, para que quien espera en la bajada sepa qué esperar y los coordinadores puedan
-            despachar refuerzos antes de que alguien se quede sin subir.
+            Cada unidad sale casi vacía desde Hotel Valle Grande —a veces con un grupo moderado del hotel que
+            baja a trabajar o estudiar— pero se llena rápido en el camino, dejando sin cupo a los vecinos de
+            las paradas más abajo en El Playón. Ruta del Valle muestra en tiempo real dónde va cada bus, para
+            que quien espera en la bajada sepa qué esperar y los coordinadores puedan despachar refuerzos
+            antes de que alguien se quede sin subir.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-14">
             <a href="#embarca" className="text-sm font-medium px-6 py-3 rounded-full bg-forest text-white hover:bg-forest-dark transition">
@@ -317,8 +320,9 @@ export default function Home() {
             <p className="text-terracotta text-xs font-semibold tracking-widest uppercase mb-3">Cómo funciona</p>
             <h2 className="font-display text-3xl text-forest mb-4">Un mismo dato, tres roles</h2>
             <p className="text-forest/60">
-              La bajada —de Hotel Valle Grande a Av. 19— es el tramo crítico: cada unidad sale llena y son
-              los vecinos de El Playón quienes esperan camino abajo. La subida sirve sobre todo a profesores,
+              La bajada —de Hotel Valle Grande a Av. 19— es el tramo crítico: cada unidad sale casi vacía
+              pero se llena rápido, y son los vecinos de las paradas más abajo en El Playón quienes se quedan
+              esperando. La subida sirve sobre todo a profesores,
               estudiantes y trabajadores que viven en el centro y suben hasta El Valle por trabajo o estudio.
               Un mismo dato de ocupación se traduce distinto según quién lo mire.
             </p>
