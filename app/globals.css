@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-forest: #1F3D2E;
+  --color-forest-dark: #142A20;
+  --color-cream: #F5EFE1;
+  --color-paper: #FFFDF7;
+  --color-terracotta: #C2542C;
+  --color-terracotta-dark: #7C3418;
+  --color-mountain: #3E6478;
+  --color-mustard: #E0A83C;
+  --color-mustard-dark: #8C641D;
+  --color-teal: #2F7D6B;
+  --color-teal-dark: #1F5346;
+  --color-ink: #211F17;
+
+  --font-display: 'Fraunces', serif;
+  --font-sans: 'Inter', sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--color-cream);
+  color: var(--color-ink);
+}
+
+::selection {
+  background: var(--color-mustard);
+  color: var(--color-forest-dark);
+}
+
+a, button, select {
+  outline-offset: 2px;
+}
+a:focus-visible, button:focus-visible, select:focus-visible {
+  outline: 2px solid var(--color-mustard);
+}
+
+.ticket-dash {
+  background-image: linear-gradient(to right, var(--color-forest) 50%, rgba(0, 0, 0, 0) 0%);
+  background-position: bottom;
+  background-size: 12px 2px;
+  background-repeat: repeat-x;
+}
+
+.stub::before, .stub::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: var(--color-cream);
+  border-radius: 50%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.stub::before { left: -8px; }
+.stub::after { right: -8px; }
+
+.phone {
+  position: relative;
+  width: 280px;
+  border-radius: 34px;
+  background: var(--color-paper);
+  border: 8px solid var(--color-forest-dark);
+  box-shadow: 0 30px 60px -25px rgba(32, 51, 42, 0.45), 0 0 0 1px rgba(32, 51, 42, 0.06);
+}
+.phone::before {
+  content: "";
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 18px;
+  background: var(--color-forest-dark);
+  border-radius: 0 0 14px 14px;
+}
+.phone::after {
+  content: "";
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--color-forest-dark);
+  opacity: 0.35;
+}
+
+.view { display: none; }
+.view.active {
+  display: block;
+  animation: view-in .3s ease;
+}
+@keyframes view-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.role-btn { transition: all .15s ease; }
+.role-btn.active {
+  background: var(--color-forest);
+  color: var(--color-paper);
+  box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.35);
+}
+
+.bus-marker-icon {
+  transition: transform 1.2s ease-in-out;
+}
+
+.feature-card {
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 30px -20px rgba(32, 51, 42, 0.3);
+}
