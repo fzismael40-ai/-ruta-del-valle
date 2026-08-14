@@ -10,12 +10,16 @@ type Bus = {
   nombre: string;
   ocupacion_actual: number;
   capacidad_total: number;
+  latitud: number | null;
+  longitud: number | null;
   parada_actual: string | null;
   parada_orden: number;
   necesita_refuerzo: boolean;
   sentido: "ida" | "vuelta";
   refuerzo_desde: string | null;
 };
+
+const CLAVE_PILOTO = "valle2026";
 
 type Parada = {
   id: string;
@@ -39,6 +43,24 @@ export default function Home() {
   const prevBusesRef = useRef<Map<string, Bus>>(new Map());
   const lastSalidaRef = useRef<{ ida: number | null; vuelta: number | null }>({ ida: null, vuelta: null });
   const [demanda, setDemanda] = useState<{ ida: number; vuelta: number } | null>(null);
+  const [pilotoDesbloqueado, setPilotoDesbloqueado] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem("piloto-clave") === CLAVE_PILOTO
+  );
+  const [claveInput, setClaveInput] = useState("");
+  const [claveError, setClaveError] = useState(false);
+  const [ubicacionActiva, setUbicacionActiva] = useState(false);
+  const [ubicacionError, setUbicacionError] = useState<string | null>(null);
+  const ultimoEnvioUbicacionRef = useRef(0);
+
+  const intentarDesbloquearPiloto = () => {
+    if (claveInput === CLAVE_PILOTO) {
+      localStorage.setItem("piloto-clave", CLAVE_PILOTO);
+      setPilotoDesbloqueado(true);
+      setClaveError(false);
+    } else {
+      setClaveError(true);
+    }
+  };
 
   useEffect(() => {
     const t = setInterval(() => setAhora(Date.now()), 15000);
@@ -124,6 +146,40 @@ export default function Home() {
   const totalParadas = listaActual.length;
   const esVuelta = miBus?.sentido === "vuelta";
   const esFinalDeLista = miBus ? miBus.parada_orden >= totalParadas : false;
+
+  // Ubicación real del piloto: mientras esté activa, actualiza la posición
+  // del bus seleccionado en Supabase (máximo una escritura cada 5s).
+  useEffect(() => {
+    if (role !== "piloto" || !pilotoDesbloqueado || !miBus?.id || !navigator.geolocation) {
+      return;
+    }
+    const busId = miBus.id;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setUbicacionActiva(true);
+        setUbicacionError(null);
+        const ahoraTs = Date.now();
+        if (ahoraTs - ultimoEnvioUbicacionRef.current < 5000) return;
+        ultimoEnvioUbicacionRef.current = ahoraTs;
+        supabase
+          .from("buses")
+          .update({
+            latitud: pos.coords.latitude,
+            longitud: pos.coords.longitude,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", busId);
+      },
+      (err) => {
+        setUbicacionActiva(false);
+        setUbicacionError(err.message);
+      },
+      { enableHighAccuracy: true, maximumAge: 8000, timeout: 15000 }
+    );
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [role, pilotoDesbloqueado, miBus?.id]);
 
   const minutosEsperando = (refuerzoDesde: string | null) => {
     if (!refuerzoDesde) return 0;
@@ -233,6 +289,20 @@ export default function Home() {
 
   const busesEnMapa = buses
     .map((b) => {
+      // Si el piloto tiene GPS activo, usamos su ubicación real; si no,
+      // caemos a la posición aproximada de la parada donde está reportado.
+      if (b.latitud !== null && b.longitud !== null) {
+        return {
+          id: b.id,
+          nombre: b.nombre,
+          sentido: b.sentido,
+          necesita_refuerzo: b.necesita_refuerzo,
+          lat: b.latitud,
+          lng: b.longitud,
+          ocupacion_actual: b.ocupacion_actual,
+          capacidad_total: b.capacidad_total,
+        };
+      }
       const parada = paradas.find((p) => p.nombre === b.parada_actual);
       if (!parada || parada.latitud === null || parada.longitud === null) return null;
       return {
@@ -408,34 +478,64 @@ export default function Home() {
               </div>
 
               <div className={`view ${role==="piloto" ? "active" : ""}`}>
-                {buses.length > 0 && (
-                  <select
-                    value={miBus?.id ?? ""}
-                    onChange={(e) => setBusSeleccionadoId(e.target.value)}
-                    className="w-full mb-3 text-xs font-medium text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
-                  >
-                    {buses.map((b) => (
-                      <option key={b.id} value={b.id}>{b.nombre}</option>
-                    ))}
-                  </select>
+                {!pilotoDesbloqueado ? (
+                  <div className="py-2">
+                    <p className="text-sm text-forest/60 mb-3">Acceso solo para pilotos. Ingresa la clave de turno:</p>
+                    <input
+                      type="password"
+                      value={claveInput}
+                      onChange={(e) => { setClaveInput(e.target.value); setClaveError(false); }}
+                      onKeyDown={(e) => e.key === "Enter" && intentarDesbloquearPiloto()}
+                      placeholder="Clave"
+                      className="w-full mb-2 text-sm text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
+                    />
+                    {claveError && <p className="text-xs text-terracotta mb-2">Clave incorrecta.</p>}
+                    <button onClick={intentarDesbloquearPiloto} className="w-full py-2.5 rounded-full bg-forest text-white text-sm font-medium">
+                      Entrar
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    {buses.length > 0 && (
+                      <select
+                        value={miBus?.id ?? ""}
+                        onChange={(e) => setBusSeleccionadoId(e.target.value)}
+                        className="w-full mb-3 text-xs font-medium text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
+                      >
+                        {buses.map((b) => (
+                          <option key={b.id} value={b.id}>{b.nombre}</option>
+                        ))}
+                      </select>
+                    )}
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`w-2 h-2 rounded-full ${ubicacionActiva ? "bg-teal" : "bg-forest/25"}`}></span>
+                      <span className="text-xs text-forest/50">
+                        {ubicacionActiva
+                          ? "Ubicación GPS activa"
+                          : ubicacionError
+                          ? `GPS no disponible (${ubicacionError})`
+                          : "Activando GPS..."}
+                      </span>
+                    </div>
+                    <p className="text-xs text-forest/50 mb-2">
+                      {esVuelta ? "Bajando" : "Subiendo"} · Parada: {miBus?.parada_actual ?? "..."} ({miBus?.parada_orden ?? 1}/{totalParadas})
+                    </p>
+                    <div className="flex items-baseline gap-2 mb-3">
+                      <span className="font-display text-4xl text-forest">{miBus?.ocupacion_actual ?? 0}</span>
+                      <span className="text-sm text-forest/60">/ {miBus?.capacidad_total ?? 30} pasajeros</span>
+                    </div>
+                    <div className="h-2 bg-cream rounded-full overflow-hidden mb-4">
+                      <div className="h-full bg-mustard" style={{width: `${miBus ? (miBus.ocupacion_actual/miBus.capacidad_total)*100 : 0}%`}}></div>
+                    </div>
+                    <div className="flex gap-3 mb-3">
+                      <button onClick={() => bump(-1)} className="flex-1 py-2.5 rounded-full border border-forest/30 text-forest text-sm font-medium">− Bajó</button>
+                      <button onClick={() => bump(1)} className="flex-1 py-2.5 rounded-full bg-forest text-white text-sm font-medium">+ Subió</button>
+                    </div>
+                    <button onClick={avanzarParada} className="w-full py-2.5 rounded-full bg-terracotta text-white text-sm font-medium">
+                      {textoBotonPiloto}
+                    </button>
+                  </>
                 )}
-                <p className="text-xs text-forest/50 mb-2">
-                  {esVuelta ? "Bajando" : "Subiendo"} · Parada: {miBus?.parada_actual ?? "..."} ({miBus?.parada_orden ?? 1}/{totalParadas})
-                </p>
-                <div className="flex items-baseline gap-2 mb-3">
-                  <span className="font-display text-4xl text-forest">{miBus?.ocupacion_actual ?? 0}</span>
-                  <span className="text-sm text-forest/60">/ {miBus?.capacidad_total ?? 30} pasajeros</span>
-                </div>
-                <div className="h-2 bg-cream rounded-full overflow-hidden mb-4">
-                  <div className="h-full bg-mustard" style={{width: `${miBus ? (miBus.ocupacion_actual/miBus.capacidad_total)*100 : 0}%`}}></div>
-                </div>
-                <div className="flex gap-3 mb-3">
-                  <button onClick={() => bump(-1)} className="flex-1 py-2.5 rounded-full border border-forest/30 text-forest text-sm font-medium">− Bajó</button>
-                  <button onClick={() => bump(1)} className="flex-1 py-2.5 rounded-full bg-forest text-white text-sm font-medium">+ Subió</button>
-                </div>
-                <button onClick={avanzarParada} className="w-full py-2.5 rounded-full bg-terracotta text-white text-sm font-medium">
-                  {textoBotonPiloto}
-                </button>
               </div>
 
               <div className={`view ${role==="coordinador" ? "active" : ""}`}>
