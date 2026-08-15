@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,6 +11,15 @@ export const metadata: Metadata = {
       "Rastreo de buses en tiempo real para la ruta Hotel Valle Grande – Av. 19, en Mérida.",
     locale: "es_VE",
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Ruta del Valle",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1F3D2E",
 };
 
 export default function RootLayout({

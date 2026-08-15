@@ -189,6 +189,39 @@ export default function Home() {
     };
   }, [role, pilotoDesbloqueado, miBus?.id]);
 
+  // Mantiene la pantalla encendida mientras el piloto está rastreando, y la
+  // vuelve a pedir si el navegador la soltó al cambiar de pestaña.
+  useEffect(() => {
+    if (role !== "piloto" || !pilotoDesbloqueado || !("wakeLock" in navigator)) return;
+    let sentinel: WakeLockSentinel | null = null;
+    let cancelado = false;
+
+    const pedirWakeLock = async () => {
+      try {
+        const s = await navigator.wakeLock.request("screen");
+        if (cancelado) {
+          s.release();
+          return;
+        }
+        sentinel = s;
+      } catch {
+        // el usuario puede haber negado el permiso o la pestaña no está visible; no es crítico
+      }
+    };
+    pedirWakeLock();
+
+    const alVolverVisible = () => {
+      if (document.visibilityState === "visible" && !sentinel) pedirWakeLock();
+    };
+    document.addEventListener("visibilitychange", alVolverVisible);
+
+    return () => {
+      cancelado = true;
+      document.removeEventListener("visibilitychange", alVolverVisible);
+      sentinel?.release();
+    };
+  }, [role, pilotoDesbloqueado]);
+
   const minutosEsperando = (refuerzoDesde: string | null) => {
     if (!refuerzoDesde) return 0;
     return Math.floor((ahora - new Date(refuerzoDesde).getTime()) / 60000);
