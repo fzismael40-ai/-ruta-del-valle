@@ -40,11 +40,20 @@ export default function ParadaStatus({ id }: { id: string }) {
   const [buses, setBuses] = useState<Bus[]>([]);
   const [checkinsDisponibles, setCheckinsDisponibles] = useState(true);
   const [conteo, setConteo] = useState<{ ida: number; vuelta: number }>({ ida: 0, vuelta: 0 });
-  const [yaMarcado, setYaMarcado] = useState<{ ida: boolean; vuelta: boolean }>(() => ({
-    ida: typeof window !== "undefined" && localStorage.getItem(`checkin-${id}-ida`) === new Date().toDateString(),
-    vuelta: typeof window !== "undefined" && localStorage.getItem(`checkin-${id}-vuelta`) === new Date().toDateString(),
-  }));
+  // Empieza sin marcar en ambos lados (servidor y cliente) para evitar un
+  // desajuste de hidratación; el useEffect de abajo confirma leyendo
+  // localStorage solo en el navegador, después del primer render.
+  const [yaMarcado, setYaMarcado] = useState<{ ida: boolean; vuelta: boolean }>({ ida: false, vuelta: false });
   const [enviando, setEnviando] = useState<"ida" | "vuelta" | null>(null);
+
+  useEffect(() => {
+    const hoy = new Date().toDateString();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setYaMarcado({
+      ida: localStorage.getItem(`checkin-${id}-ida`) === hoy,
+      vuelta: localStorage.getItem(`checkin-${id}-vuelta`) === hoy,
+    });
+  }, [id]);
 
   useEffect(() => {
     const fetchParada = async () => {

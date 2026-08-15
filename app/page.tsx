@@ -43,14 +43,20 @@ export default function Home() {
   const prevBusesRef = useRef<Map<string, Bus>>(new Map());
   const lastSalidaRef = useRef<{ ida: number | null; vuelta: number | null }>({ ida: null, vuelta: null });
   const [demanda, setDemanda] = useState<{ ida: number; vuelta: number } | null>(null);
-  const [pilotoDesbloqueado, setPilotoDesbloqueado] = useState(
-    () => typeof window !== "undefined" && localStorage.getItem("piloto-clave") === CLAVE_PILOTO
-  );
+  // Empieza bloqueado en ambos lados (servidor y cliente) para evitar un
+  // desajuste de hidratación; el useEffect de abajo confirma el desbloqueo
+  // leyendo localStorage solo en el navegador, después del primer render.
+  const [pilotoDesbloqueado, setPilotoDesbloqueado] = useState(false);
   const [claveInput, setClaveInput] = useState("");
   const [claveError, setClaveError] = useState(false);
   const [ubicacionActiva, setUbicacionActiva] = useState(false);
   const [ubicacionError, setUbicacionError] = useState<string | null>(null);
   const ultimoEnvioUbicacionRef = useRef(0);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (localStorage.getItem("piloto-clave") === CLAVE_PILOTO) setPilotoDesbloqueado(true);
+  }, []);
 
   const intentarDesbloquearPiloto = () => {
     if (claveInput === CLAVE_PILOTO) {
