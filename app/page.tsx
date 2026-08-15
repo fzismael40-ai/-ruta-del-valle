@@ -22,6 +22,11 @@ type Bus = {
 
 const CLAVE_PILOTO = "valle2026";
 
+type PromptInstalacion = Event & {
+  prompt: () => void;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
+
 type Parada = {
   id: string;
   nombre: string;
@@ -34,7 +39,9 @@ type Parada = {
 
 export default function Home() {
   const router = useRouter();
-  const clicVerAppRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [instalarPrompt, setInstalarPrompt] = useState<PromptInstalacion | null>(null);
+  const [mostrarBotonInstalar, setMostrarBotonInstalar] = useState(true);
+  const [mensajeInstalacion, setMensajeInstalacion] = useState<string | null>(null);
   const [role, setRole] = useState<"pasajero" | "piloto" | "coordinador">("pasajero");
   const [buses, setBuses] = useState<Bus[]>([]);
   const [paradas, setParadas] = useState<Parada[]>([]);
@@ -61,19 +68,35 @@ export default function Home() {
     if (localStorage.getItem("piloto-clave") === CLAVE_PILOTO) setPilotoDesbloqueado(true);
   }, []);
 
-  // Un clic en "Ver la app" baja a la demo; dos clics seguidos (o dos toques
-  // en el celular) entran al panel de administrador en su lugar.
-  const manejarClicVerApp = () => {
-    if (clicVerAppRef.current) {
-      clearTimeout(clicVerAppRef.current);
-      clicVerAppRef.current = null;
-      router.push("/admin");
+  useEffect(() => {
+    const alPoderInstalar = (e: Event) => {
+      e.preventDefault();
+      setInstalarPrompt(e as PromptInstalacion);
+    };
+    const alInstalar = () => setMostrarBotonInstalar(false);
+    window.addEventListener("beforeinstallprompt", alPoderInstalar);
+    window.addEventListener("appinstalled", alInstalar);
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMostrarBotonInstalar(false);
+    }
+    return () => {
+      window.removeEventListener("beforeinstallprompt", alPoderInstalar);
+      window.removeEventListener("appinstalled", alInstalar);
+    };
+  }, []);
+
+  const descargarApp = async () => {
+    if (instalarPrompt) {
+      instalarPrompt.prompt();
+      const eleccion = await instalarPrompt.userChoice;
+      if (eleccion.outcome === "accepted") setMostrarBotonInstalar(false);
+      setInstalarPrompt(null);
       return;
     }
-    clicVerAppRef.current = setTimeout(() => {
-      document.getElementById("embarca")?.scrollIntoView({ behavior: "smooth" });
-      clicVerAppRef.current = null;
-    }, 280);
+    setMensajeInstalacion(
+      "En iPhone: toca el ícono de compartir (⬆) en Safari y elige \"Agregar a pantalla de inicio\". En Android, desde el menú (⋮) elige \"Instalar app\"."
+    );
   };
 
   const intentarDesbloquearPiloto = () => {
@@ -380,22 +403,38 @@ export default function Home() {
       <header className="sticky top-0 z-30 backdrop-blur border-b border-forest/10" style={{background:"rgba(246,241,231,0.9)"}}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="font-display font-semibold text-lg text-forest select-none">
+            <button
+              onDoubleClick={() => router.push("/admin")}
+              style={{ touchAction: "manipulation" }}
+              className="font-display font-semibold text-lg text-forest select-none"
+            >
               Ruta del Valle
-            </span>
+            </button>
           </div>
           <nav className="hidden sm:flex items-center gap-6">
             <a href="#como-funciona" className="text-sm text-forest/70 hover:text-forest transition">Cómo funciona</a>
             <a href="#embarca" className="text-sm text-forest/70 hover:text-forest transition">En vivo</a>
           </nav>
-          <button
-            onClick={manejarClicVerApp}
-            style={{ touchAction: "manipulation" }}
-            className="text-sm font-medium px-4 py-2 rounded-full bg-forest text-white hover:bg-forest-dark transition"
-          >
-            Ver la app
-          </button>
+          <div className="flex items-center gap-2">
+            {mostrarBotonInstalar && (
+              <button
+                onClick={descargarApp}
+                className="text-sm font-medium px-4 py-2 rounded-full border border-forest text-forest hover:bg-forest/5 transition"
+              >
+                ⬇ Descargar
+              </button>
+            )}
+            <a href="#embarca" className="text-sm font-medium px-4 py-2 rounded-full bg-forest text-white hover:bg-forest-dark transition">Ver la app</a>
+          </div>
         </div>
+        {mensajeInstalacion && (
+          <div className="max-w-6xl mx-auto px-6 pb-3 -mt-1">
+            <div className="bg-teal/15 text-teal-dark text-xs rounded-lg px-3 py-2 flex justify-between items-center">
+              <span>{mensajeInstalacion}</span>
+              <button onClick={() => setMensajeInstalacion(null)} className="text-teal-dark/60 hover:text-teal-dark ml-3">✕</button>
+            </div>
+          </div>
+        )}
       </header>
 
       <section className="relative overflow-hidden bg-cream pt-20 pb-24">
