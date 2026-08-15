@@ -35,6 +35,7 @@ export default function AdminPage() {
   const [fijandoId, setFijandoId] = useState<string | null>(null);
 
   const [nuevaParada, setNuevaParada] = useState({ nombre: "", orden: "", orden_vuelta: "" });
+  const [agregandoParada, setAgregandoParada] = useState(false);
   const [nuevoBus, setNuevoBus] = useState({ nombre: "", capacidad: "17" });
 
   const [editandoParadaId, setEditandoParadaId] = useState<string | null>(null);
@@ -152,21 +153,43 @@ export default function AdminPage() {
     cargarDatos();
   };
 
+  const obtenerUbicacionActual = (): Promise<{ lat: number; lng: number } | null> =>
+    new Promise((resolve) => {
+      if (!navigator.geolocation) {
+        resolve(null);
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    });
+
   const agregarParada = async () => {
     if (!nuevaParada.nombre.trim()) {
       setMensaje("Ponle un nombre a la parada.");
       return;
     }
+    setAgregandoParada(true);
+    const ubicacion = await obtenerUbicacionActual();
     const { error } = await supabase.from("paradas").insert({
       nombre: nuevaParada.nombre.trim(),
       orden: nuevaParada.orden ? Number(nuevaParada.orden) : null,
       orden_vuelta: nuevaParada.orden_vuelta ? Number(nuevaParada.orden_vuelta) : null,
+      latitud: ubicacion?.lat ?? null,
+      longitud: ubicacion?.lng ?? null,
     });
+    setAgregandoParada(false);
     if (error) {
       setMensaje(`Error al agregar parada: ${error.message}`);
       return;
     }
-    setMensaje(`Parada "${nuevaParada.nombre}" agregada. Ahora ve al sitio físico y usa "Fijar aquí".`);
+    setMensaje(
+      ubicacion
+        ? `Parada "${nuevaParada.nombre}" agregada con tu ubicación actual.`
+        : `Parada "${nuevaParada.nombre}" agregada sin ubicación (no se pudo obtener tu GPS) — usa "Fijar aquí" después.`
+    );
     setNuevaParada({ nombre: "", orden: "", orden_vuelta: "" });
     cargarDatos();
   };
@@ -233,6 +256,9 @@ export default function AdminPage() {
 
         <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
           <h2 className="font-display text-lg text-forest mb-3">Agregar parada</h2>
+          <p className="text-xs text-forest/50 mb-3">
+            Párate en el sitio físico antes de agregarla — se captura tu ubicación GPS automáticamente.
+          </p>
           <div className="grid grid-cols-3 gap-2 mb-3">
             <input
               value={nuevaParada.nombre}
@@ -255,8 +281,12 @@ export default function AdminPage() {
               className="text-sm border border-forest/15 rounded-lg px-3 py-2"
             />
           </div>
-          <button onClick={agregarParada} className="text-sm font-medium px-4 py-2 rounded-full bg-forest text-white hover:bg-forest-dark transition">
-            Agregar parada
+          <button
+            onClick={agregarParada}
+            disabled={agregandoParada}
+            className="text-sm font-medium px-4 py-2 rounded-full bg-forest text-white hover:bg-forest-dark transition disabled:opacity-50"
+          >
+            {agregandoParada ? "Ubicando..." : "Agregar parada"}
           </button>
         </section>
 
