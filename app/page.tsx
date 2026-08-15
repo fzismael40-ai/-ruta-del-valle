@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { supabase } from "./supabaseClient";
 
 const MapaRuta = dynamic(() => import("./MapaRuta"), { ssr: false });
@@ -329,7 +330,7 @@ export default function Home() {
       <header className="sticky top-0 z-30 backdrop-blur border-b border-forest/10" style={{background:"rgba(246,241,231,0.9)"}}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="font-display font-semibold text-lg text-forest">Ruta del Valle</span>
+            <Link href="/admin" className="font-display font-semibold text-lg text-forest">Ruta del Valle</Link>
           </div>
           <nav className="hidden sm:flex items-center gap-6">
             <a href="#como-funciona" className="text-sm text-forest/70 hover:text-forest transition">Cómo funciona</a>

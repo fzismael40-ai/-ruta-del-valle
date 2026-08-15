@@ -37,6 +37,11 @@ export default function AdminPage() {
   const [nuevaParada, setNuevaParada] = useState({ nombre: "", orden: "", orden_vuelta: "" });
   const [nuevoBus, setNuevoBus] = useState({ nombre: "", capacidad: "17" });
 
+  const [editandoParadaId, setEditandoParadaId] = useState<string | null>(null);
+  const [editParada, setEditParada] = useState({ nombre: "", orden: "", orden_vuelta: "" });
+  const [editandoBusId, setEditandoBusId] = useState<string | null>(null);
+  const [editBus, setEditBus] = useState({ nombre: "", capacidad: "" });
+
   const cargarDatos = async () => {
     const { data: p } = await supabase.from("paradas").select("id,nombre,orden,orden_vuelta,latitud,longitud").order("orden");
     if (p) setParadas(p as Parada[]);
@@ -91,6 +96,60 @@ export default function AdminPage() {
       },
       { enableHighAccuracy: true, timeout: 15000 }
     );
+  };
+
+  const iniciarEdicionParada = (p: Parada) => {
+    setEditandoParadaId(p.id);
+    setEditParada({
+      nombre: p.nombre,
+      orden: p.orden?.toString() ?? "",
+      orden_vuelta: p.orden_vuelta?.toString() ?? "",
+    });
+  };
+
+  const guardarEdicionParada = async (id: string) => {
+    if (!editParada.nombre.trim()) {
+      setMensaje("El nombre no puede quedar vacío.");
+      return;
+    }
+    const { error } = await supabase
+      .from("paradas")
+      .update({
+        nombre: editParada.nombre.trim(),
+        orden: editParada.orden ? Number(editParada.orden) : null,
+        orden_vuelta: editParada.orden_vuelta ? Number(editParada.orden_vuelta) : null,
+      })
+      .eq("id", id);
+    if (error) {
+      setMensaje(`Error al guardar: ${error.message}`);
+      return;
+    }
+    setMensaje("Parada actualizada.");
+    setEditandoParadaId(null);
+    cargarDatos();
+  };
+
+  const iniciarEdicionBus = (b: Bus) => {
+    setEditandoBusId(b.id);
+    setEditBus({ nombre: b.nombre, capacidad: b.capacidad_total.toString() });
+  };
+
+  const guardarEdicionBus = async (id: string) => {
+    if (!editBus.nombre.trim() || !editBus.capacidad) {
+      setMensaje("Completa nombre y capacidad.");
+      return;
+    }
+    const { error } = await supabase
+      .from("buses")
+      .update({ nombre: editBus.nombre.trim(), capacidad_total: Number(editBus.capacidad) })
+      .eq("id", id);
+    if (error) {
+      setMensaje(`Error al guardar: ${error.message}`);
+      return;
+    }
+    setMensaje("Unidad actualizada.");
+    setEditandoBusId(null);
+    cargarDatos();
   };
 
   const agregarParada = async () => {
@@ -204,24 +263,59 @@ export default function AdminPage() {
         <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
           <h2 className="font-display text-lg text-forest mb-3">Paradas ({paradas.length})</h2>
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {paradas.map((p) => (
-              <div key={p.id} className="flex items-center justify-between gap-3 px-3 py-2 bg-cream rounded-lg text-sm">
-                <div>
-                  <p className="text-forest font-medium">{p.nombre}</p>
-                  <p className="text-forest/50 text-xs">
-                    subida {p.orden ?? "—"} · bajada {p.orden_vuelta ?? "—"} ·{" "}
-                    {p.latitud !== null ? `${p.latitud.toFixed(5)}, ${p.longitud?.toFixed(5)}` : "sin ubicar"}
-                  </p>
+            {paradas.map((p) =>
+              editandoParadaId === p.id ? (
+                <div key={p.id} className="px-3 py-2.5 bg-cream rounded-lg text-sm space-y-2">
+                  <input
+                    value={editParada.nombre}
+                    onChange={(e) => setEditParada({ ...editParada, nombre: e.target.value })}
+                    placeholder="Nombre"
+                    className="w-full text-sm border border-forest/15 rounded-lg px-3 py-1.5"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      value={editParada.orden}
+                      onChange={(e) => setEditParada({ ...editParada, orden: e.target.value })}
+                      placeholder="Orden subida"
+                      type="number"
+                      className="text-sm border border-forest/15 rounded-lg px-3 py-1.5"
+                    />
+                    <input
+                      value={editParada.orden_vuelta}
+                      onChange={(e) => setEditParada({ ...editParada, orden_vuelta: e.target.value })}
+                      placeholder="Orden bajada"
+                      type="number"
+                      className="text-sm border border-forest/15 rounded-lg px-3 py-1.5"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => guardarEdicionParada(p.id)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full bg-forest text-white">
+                      Guardar
+                    </button>
+                    <button onClick={() => setEditandoParadaId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-forest">
+                      Cancelar
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={() => fijarUbicacionAqui(p.id)}
-                  disabled={fijandoId === p.id}
-                  className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-terracotta text-terracotta hover:bg-terracotta/10 transition disabled:opacity-50"
-                >
-                  {fijandoId === p.id ? "Ubicando..." : "📍 Fijar aquí"}
-                </button>
-              </div>
-            ))}
+              ) : (
+                <div key={p.id} className="flex items-center justify-between gap-3 px-3 py-2 bg-cream rounded-lg text-sm">
+                  <button onClick={() => iniciarEdicionParada(p)} className="text-left flex-1 min-w-0">
+                    <p className="text-forest font-medium hover:underline">{p.nombre}</p>
+                    <p className="text-forest/50 text-xs">
+                      subida {p.orden ?? "—"} · bajada {p.orden_vuelta ?? "—"} ·{" "}
+                      {p.latitud !== null ? `${p.latitud.toFixed(5)}, ${p.longitud?.toFixed(5)}` : "sin ubicar"}
+                    </p>
+                  </button>
+                  <button
+                    onClick={() => fijarUbicacionAqui(p.id)}
+                    disabled={fijandoId === p.id}
+                    className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-terracotta text-terracotta hover:bg-terracotta/10 transition disabled:opacity-50"
+                  >
+                    {fijandoId === p.id ? "Ubicando..." : p.latitud !== null ? "📍 Recalibrar" : "📍 Fijar aquí"}
+                  </button>
+                </div>
+              )
+            )}
           </div>
         </section>
 
@@ -250,12 +344,44 @@ export default function AdminPage() {
         <section className="bg-paper border border-forest/10 rounded-2xl p-5">
           <h2 className="font-display text-lg text-forest mb-3">Unidades ({buses.length})</h2>
           <div className="space-y-2">
-            {buses.map((b) => (
-              <div key={b.id} className="flex justify-between px-3 py-2 bg-cream rounded-lg text-sm">
-                <span className="text-forest">{b.nombre}</span>
-                <span className="text-forest/50">{b.capacidad_total} puestos</span>
-              </div>
-            ))}
+            {buses.map((b) =>
+              editandoBusId === b.id ? (
+                <div key={b.id} className="px-3 py-2.5 bg-cream rounded-lg text-sm space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      value={editBus.nombre}
+                      onChange={(e) => setEditBus({ ...editBus, nombre: e.target.value })}
+                      placeholder="Nombre"
+                      className="text-sm border border-forest/15 rounded-lg px-3 py-1.5"
+                    />
+                    <input
+                      value={editBus.capacidad}
+                      onChange={(e) => setEditBus({ ...editBus, capacidad: e.target.value })}
+                      placeholder="Capacidad"
+                      type="number"
+                      className="text-sm border border-forest/15 rounded-lg px-3 py-1.5"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => guardarEdicionBus(b.id)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full bg-forest text-white">
+                      Guardar
+                    </button>
+                    <button onClick={() => setEditandoBusId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-forest">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  key={b.id}
+                  onClick={() => iniciarEdicionBus(b)}
+                  className="w-full flex justify-between px-3 py-2 bg-cream rounded-lg text-sm hover:bg-forest/5 transition"
+                >
+                  <span className="text-forest">{b.nombre}</span>
+                  <span className="text-forest/50">{b.capacidad_total} puestos · editar</span>
+                </button>
+              )
+            )}
           </div>
         </section>
       </div>
