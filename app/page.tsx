@@ -21,6 +21,7 @@ type Bus = {
 };
 
 const CLAVE_PILOTO = "valle2026";
+const CLAVE_COORDINADOR = "coordina2026";
 
 type PromptInstalacion = Event & {
   prompt: () => void;
@@ -59,13 +60,21 @@ export default function Home() {
   const [pilotoDesbloqueado, setPilotoDesbloqueado] = useState(false);
   const [claveInput, setClaveInput] = useState("");
   const [claveError, setClaveError] = useState(false);
+  const [coordinadorDesbloqueado, setCoordinadorDesbloqueado] = useState(false);
+  const [claveCoordInput, setClaveCoordInput] = useState("");
+  const [claveCoordError, setClaveCoordError] = useState(false);
   const [ubicacionActiva, setUbicacionActiva] = useState(false);
   const [ubicacionError, setUbicacionError] = useState<string | null>(null);
   const ultimoEnvioUbicacionRef = useRef(0);
+  // Empieza en modo web (con presentación) en ambos lados para evitar un
+  // desajuste de hidratación; se confirma el modo app instalada después del
+  // primer render, cuando ya se puede consultar display-mode con seguridad.
+  const [esAppInstalada, setEsAppInstalada] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (localStorage.getItem("piloto-clave") === CLAVE_PILOTO) setPilotoDesbloqueado(true);
+    if (localStorage.getItem("coordinador-clave") === CLAVE_COORDINADOR) setCoordinadorDesbloqueado(true);
   }, []);
 
   useEffect(() => {
@@ -79,6 +88,7 @@ export default function Home() {
     if (window.matchMedia("(display-mode: standalone)").matches) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setMostrarBotonInstalar(false);
+      setEsAppInstalada(true);
     }
     return () => {
       window.removeEventListener("beforeinstallprompt", alPoderInstalar);
@@ -106,6 +116,16 @@ export default function Home() {
       setClaveError(false);
     } else {
       setClaveError(true);
+    }
+  };
+
+  const intentarDesbloquearCoordinador = () => {
+    if (claveCoordInput === CLAVE_COORDINADOR) {
+      localStorage.setItem("coordinador-clave", CLAVE_COORDINADOR);
+      setCoordinadorDesbloqueado(true);
+      setClaveCoordError(false);
+    } else {
+      setClaveCoordError(true);
     }
   };
 
@@ -411,10 +431,12 @@ export default function Home() {
               Ruta del Valle
             </button>
           </div>
-          <nav className="hidden sm:flex items-center gap-6">
-            <a href="#como-funciona" className="text-sm text-forest/70 hover:text-forest transition">Cómo funciona</a>
-            <a href="#embarca" className="text-sm text-forest/70 hover:text-forest transition">En vivo</a>
-          </nav>
+          {!esAppInstalada && (
+            <nav className="hidden sm:flex items-center gap-6">
+              <a href="#como-funciona" className="text-sm text-forest/70 hover:text-forest transition">Cómo funciona</a>
+              <a href="#embarca" className="text-sm text-forest/70 hover:text-forest transition">En vivo</a>
+            </nav>
+          )}
           <div className="flex items-center gap-2">
             {mostrarBotonInstalar && (
               <button
@@ -424,7 +446,9 @@ export default function Home() {
                 ⬇ Descargar
               </button>
             )}
-            <a href="#embarca" className="text-sm font-medium px-4 py-2 rounded-full bg-forest text-white hover:bg-forest-dark transition">Ver la app</a>
+            {!esAppInstalada && (
+              <a href="#embarca" className="text-sm font-medium px-4 py-2 rounded-full bg-forest text-white hover:bg-forest-dark transition">Ver la app</a>
+            )}
           </div>
         </div>
         {mensajeInstalacion && (
@@ -437,6 +461,8 @@ export default function Home() {
         )}
       </header>
 
+      {!esAppInstalada && (
+      <>
       <section className="relative overflow-hidden bg-cream pt-20 pb-24">
         <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
           <svg viewBox="0 0 1200 400" preserveAspectRatio="none" className="absolute bottom-0 left-0 w-full h-56">
@@ -538,11 +564,17 @@ export default function Home() {
           </div>
         </div>
       </section>
+      </>
+      )}
 
-      <section id="embarca" className="scroll-mt-20 bg-forest py-20">
+      <section id="embarca" className={`scroll-mt-20 bg-forest ${esAppInstalada ? "pt-10 pb-20" : "py-20"}`}>
         <div className="max-w-6xl mx-auto px-6">
-          <p className="text-mustard text-xs text-center uppercase tracking-widest mb-3">Pruébala tú mismo</p>
-          <h2 className="font-display text-3xl text-white text-center mb-10">Tres vistas, una sola ruta</h2>
+          {!esAppInstalada && (
+            <>
+              <p className="text-mustard text-xs text-center uppercase tracking-widest mb-3">Pruébala tú mismo</p>
+              <h2 className="font-display text-3xl text-white text-center mb-10">Tres vistas, una sola ruta</h2>
+            </>
+          )}
 
           <div className="flex justify-center gap-2 mb-8">
             <button onClick={() => setRole("pasajero")} className={`role-btn px-4 py-2 rounded-full text-sm font-medium border border-white/20 text-white ${role==="pasajero" ? "active" : ""}`}>Pasajero</button>
@@ -643,6 +675,24 @@ export default function Home() {
               </div>
 
               <div className={`view ${role==="coordinador" ? "active" : ""}`}>
+                {!coordinadorDesbloqueado ? (
+                  <div className="py-2">
+                    <p className="text-sm text-forest/60 mb-3">Acceso solo para coordinadores. Ingresa la clave:</p>
+                    <input
+                      type="password"
+                      value={claveCoordInput}
+                      onChange={(e) => { setClaveCoordInput(e.target.value); setClaveCoordError(false); }}
+                      onKeyDown={(e) => e.key === "Enter" && intentarDesbloquearCoordinador()}
+                      placeholder="Clave"
+                      className="w-full mb-2 text-sm text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
+                    />
+                    {claveCoordError && <p className="text-xs text-terracotta mb-2">Clave incorrecta.</p>}
+                    <button onClick={intentarDesbloquearCoordinador} className="w-full py-2.5 rounded-full bg-forest text-white text-sm font-medium">
+                      Entrar
+                    </button>
+                  </div>
+                ) : (
+                  <>
                 {demanda && (demanda.ida > 0 || demanda.vuelta > 0) && (
                   <div className="bg-mustard/15 rounded-lg px-3 py-2.5 mb-3">
                     <p className="text-xs text-mustard-dark font-medium mb-1">Demanda estimada (últimos 30 min, por check-in QR)</p>
@@ -726,6 +776,8 @@ export default function Home() {
                     ))}
                   </div>
                 )}
+                  </>
+                )}
               </div>
 
             </div>
@@ -755,6 +807,7 @@ export default function Home() {
         </div>
       </section>
 
+      {!esAppInstalada && (
       <footer className="bg-forest-dark py-14">
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid sm:grid-cols-3 gap-10 mb-10">
@@ -786,6 +839,7 @@ export default function Home() {
           </div>
         </div>
       </footer>
+      )}
     </>
   );
 }
