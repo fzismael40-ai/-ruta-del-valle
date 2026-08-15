@@ -34,6 +34,7 @@ type Parada = {
 
 export default function Home() {
   const router = useRouter();
+  const clicVerAppRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [role, setRole] = useState<"pasajero" | "piloto" | "coordinador">("pasajero");
   const [buses, setBuses] = useState<Bus[]>([]);
   const [paradas, setParadas] = useState<Parada[]>([]);
@@ -59,6 +60,21 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (localStorage.getItem("piloto-clave") === CLAVE_PILOTO) setPilotoDesbloqueado(true);
   }, []);
+
+  // Un clic en "Ver la app" baja a la demo; dos clics seguidos (o dos toques
+  // en el celular) entran al panel de administrador en su lugar.
+  const manejarClicVerApp = () => {
+    if (clicVerAppRef.current) {
+      clearTimeout(clicVerAppRef.current);
+      clicVerAppRef.current = null;
+      router.push("/admin");
+      return;
+    }
+    clicVerAppRef.current = setTimeout(() => {
+      document.getElementById("embarca")?.scrollIntoView({ behavior: "smooth" });
+      clicVerAppRef.current = null;
+    }, 280);
+  };
 
   const intentarDesbloquearPiloto = () => {
     if (claveInput === CLAVE_PILOTO) {
@@ -364,10 +380,7 @@ export default function Home() {
       <header className="sticky top-0 z-30 backdrop-blur border-b border-forest/10" style={{background:"rgba(246,241,231,0.9)"}}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span
-              onDoubleClick={() => router.push("/admin")}
-              className="font-display font-semibold text-lg text-forest select-none"
-            >
+            <span className="font-display font-semibold text-lg text-forest select-none">
               Ruta del Valle
             </span>
           </div>
@@ -375,7 +388,13 @@ export default function Home() {
             <a href="#como-funciona" className="text-sm text-forest/70 hover:text-forest transition">Cómo funciona</a>
             <a href="#embarca" className="text-sm text-forest/70 hover:text-forest transition">En vivo</a>
           </nav>
-          <a href="#embarca" className="text-sm font-medium px-4 py-2 rounded-full bg-forest text-white hover:bg-forest-dark transition">Ver la app</a>
+          <button
+            onClick={manejarClicVerApp}
+            style={{ touchAction: "manipulation" }}
+            className="text-sm font-medium px-4 py-2 rounded-full bg-forest text-white hover:bg-forest-dark transition"
+          >
+            Ver la app
+          </button>
         </div>
       </header>
 
