@@ -289,29 +289,6 @@ export default function AdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arrastre !== null]);
 
-  const quitarDeOrden = async (id: string) => {
-    const maestra = paradas.filter((p) => p.orden_vuelta !== null).sort((a, b) => (a.orden_vuelta as number) - (b.orden_vuelta as number));
-    const restante = maestra.filter((p) => p.id !== id);
-    const r = await supabase.from("paradas").update({ orden: null, orden_vuelta: null }).eq("id", id).select();
-    if (r.error || !r.data || r.data.length === 0) {
-      setMensaje("No se pudo quitar del orden: revisa los permisos en Supabase.");
-      return;
-    }
-    for (let i = 0; i < restante.length; i++) {
-      const nuevoValor = i + 1;
-      if (restante[i].orden_vuelta !== nuevoValor) {
-        await supabase.from("paradas").update({ orden_vuelta: nuevoValor }).eq("id", restante[i].id);
-      }
-    }
-    const patched = paradas.map((p) => {
-      if (p.id === id) return { ...p, orden: null, orden_vuelta: null };
-      const idx = restante.findIndex((r2) => r2.id === p.id);
-      return idx !== -1 ? { ...p, orden_vuelta: idx + 1 } : p;
-    });
-    await sincronizarSubidaDesdeBajada(patched);
-    cargarDatos();
-  };
-
   const agregarAlFinalDeOrden = async (id: string) => {
     const maestra = paradas.filter((p) => p.orden_vuelta !== null);
     const siguiente = maestra.length > 0 ? Math.max(...maestra.map((p) => p.orden_vuelta as number)) + 1 : 1;
@@ -611,10 +588,20 @@ export default function AdminPage() {
           </button>
         </section>
 
+        {(() => {
+          const enOrdenBase = paradas.filter((p) => p.orden_vuelta !== null).sort((a, b) => (a.orden_vuelta as number) - (b.orden_vuelta as number));
+          const enOrden = arrastre ? arrastre.orden : enOrdenBase;
+          const sinBajada = paradas.filter((p) => p.orden_vuelta === null);
+          const listaCompleta = [...enOrden, ...sinBajada];
+          return (
         <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
-          <h2 className="font-display text-lg text-forest mb-3">Paradas ({paradas.length})</h2>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {paradas.map((p) =>
+          <h2 className="font-display text-lg text-forest mb-1">Paradas ({paradas.length})</h2>
+          <p className="text-xs text-forest/50 mb-3">
+            Arrastra ☰ en el orden real en que se camina bajando (Hotel → Av. 19) — la subida se acomoda sola, al revés.
+            Toca ↑ sube / ↓ baja para marcar en qué sentido va cada parada.
+          </p>
+          <div className="space-y-2 max-h-[32rem] overflow-y-auto" style={{ touchAction: arrastre ? "none" : undefined }}>
+            {listaCompleta.map((p, i) =>
               editandoParadaId === p.id ? (
                 <div key={p.id} className="px-3 py-2.5 bg-cream rounded-lg text-sm space-y-2">
                   <input
@@ -668,8 +655,26 @@ export default function AdminPage() {
                   )}
                 </div>
               ) : (
-                <div key={p.id} className="flex flex-col gap-1.5 px-3 py-2 bg-cream rounded-lg text-sm">
-                  <div className="flex items-center justify-between gap-3">
+                <div
+                  key={p.id}
+                  data-row
+                  className={`flex flex-col gap-1.5 px-3 py-2 bg-cream rounded-lg text-sm ${arrastre?.itemId === p.id ? "shadow-md ring-2 ring-forest/30" : ""}`}
+                >
+                  <div className="flex items-center gap-2">
+                    {p.orden_vuelta !== null ? (
+                      <>
+                        <button
+                          onPointerDown={(e) => iniciarArrastre(e, p.id, e.currentTarget.closest("[data-row]") as HTMLElement)}
+                          style={{ touchAction: "none" }}
+                          className="shrink-0 w-7 h-7 rounded-full text-forest/50 cursor-grab active:cursor-grabbing select-none"
+                        >
+                          ☰
+                        </button>
+                        <span className="text-forest/40 text-xs w-5 shrink-0">{i + 1}.</span>
+                      </>
+                    ) : (
+                      <span className="w-7 shrink-0" />
+                    )}
                     <button onClick={() => iniciarEdicionParada(p)} className="text-left flex-1 min-w-0">
                       <p className="text-forest font-medium hover:underline">{p.nombre}</p>
                     </button>
@@ -681,7 +686,7 @@ export default function AdminPage() {
                       {fijandoId === p.id ? "Ubicando..." : p.latitud !== null ? "📍 Recalibrar" : "📍 Fijar aquí"}
                     </button>
                   </div>
-                  <div className="flex items-center flex-wrap gap-1.5">
+                  <div className="flex items-center flex-wrap gap-1.5 pl-9">
                     <span className="text-forest/40 text-xs">
                       {p.latitud !== null ? `${p.latitud.toFixed(5)}, ${p.longitud?.toFixed(5)}` : "sin ubicar"}
                     </span>
@@ -707,81 +712,6 @@ export default function AdminPage() {
             )}
           </div>
         </section>
-
-        {(() => {
-          const enOrdenBase = paradas.filter((p) => p.orden_vuelta !== null).sort((a, b) => (a.orden_vuelta as number) - (b.orden_vuelta as number));
-          const enOrden = arrastre ? arrastre.orden : enOrdenBase;
-          const soloSuben = paradas.filter((p) => p.orden !== null && p.orden_vuelta === null).sort((a, b) => (a.orden as number) - (b.orden as number));
-          const sinOrden = paradas.filter((p) => p.orden === null && p.orden_vuelta === null);
-          return (
-            <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
-              <h2 className="font-display text-lg text-forest mb-1">Orden de las paradas ({enOrden.length})</h2>
-              <p className="text-xs text-forest/50 mb-3">
-                Arrastra ☰ en el orden real en que se camina bajando (Hotel → Av. 19) — la subida se acomoda sola, al revés.
-                Usa &quot;{"↕ / ↓"}&quot; para marcar si una parada también se usa subiendo o es solo de bajada.
-              </p>
-              <div className="space-y-1.5 mb-4" style={{ touchAction: arrastre ? "none" : undefined }}>
-                {enOrden.length === 0 && <p className="text-xs text-forest/40">Ninguna parada tiene orden todavía.</p>}
-                {enOrden.map((p, i) => {
-                  const tambienSube = p.orden !== null;
-                  return (
-                    <div
-                      key={p.id}
-                      data-row
-                      className={`flex items-center gap-2 px-3 py-1.5 bg-cream rounded-lg text-sm ${arrastre?.itemId === p.id ? "shadow-md ring-2 ring-forest/30" : ""}`}
-                    >
-                      <button
-                        onPointerDown={(e) => iniciarArrastre(e, p.id, e.currentTarget.closest("[data-row]") as HTMLElement)}
-                        style={{ touchAction: "none" }}
-                        className="shrink-0 w-7 h-7 rounded-full text-forest/50 cursor-grab active:cursor-grabbing select-none"
-                      >
-                        ☰
-                      </button>
-                      <span className="text-forest/40 text-xs w-5 shrink-0">{i + 1}.</span>
-                      <span className="text-forest flex-1 truncate">{p.nombre}</span>
-                      <button
-                        onClick={() => alternarTambienSube(p.id)}
-                        title={tambienSube ? "También sube (tocar para dejarla solo de bajada)" : "Solo baja (tocar para que también suba)"}
-                        className={`shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-full border transition ${
-                          tambienSube ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-forest/50"
-                        }`}
-                      >
-                        {tambienSube ? "↕ sube y baja" : "↓ solo baja"}
-                      </button>
-                      <button
-                        onClick={() => quitarDeOrden(p.id)}
-                        className="shrink-0 w-7 h-7 rounded-full border border-terracotta/40 text-terracotta hover:bg-terracotta/10 transition"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-              {soloSuben.length > 0 && (
-                <p className="text-xs text-forest/40 mb-4">
-                  Excepciones que solo suben (no aparecen en esta lista, no se tocan aquí): {soloSuben.map((p) => p.nombre).join(", ")}.
-                </p>
-              )}
-              {sinOrden.length > 0 && (
-                <>
-                  <p className="text-xs text-forest/50 mb-2">Sin orden — agrégalas al final y luego arrástralas con ☰ a su lugar:</p>
-                  <div className="space-y-1.5">
-                    {sinOrden.map((p) => (
-                      <div key={p.id} className="flex items-center justify-between gap-2 px-3 py-1.5 bg-cream/60 rounded-lg text-sm">
-                        <span className="text-forest/70 truncate">{p.nombre}</span>
-                        <button
-                          onClick={() => agregarAlFinalDeOrden(p.id)}
-                          className="shrink-0 text-xs font-medium px-3 py-1 rounded-full border border-forest/20 text-forest hover:bg-forest/5 transition"
-                        >
-                          + Agregar
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </section>
           );
         })()}
 
