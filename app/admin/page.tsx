@@ -722,7 +722,7 @@ export default function AdminPage() {
     return (
       <main className="min-h-screen bg-cream flex items-center justify-center px-6">
         <div className="max-w-sm w-full">
-          <p className="font-display text-2xl text-forest mb-4 text-center">Next-Router — Panel de administrador</p>
+          <p className="font-display text-2xl text-forest mb-4 text-center">Next Route — Panel de administrador</p>
           <input
             type="password"
             value={claveInput}
@@ -746,7 +746,7 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-cream px-6 py-10">
       <div className="max-w-2xl mx-auto">
-        <Link href="/" className="text-xs text-forest/50 hover:text-forest transition">&larr; Next-Router</Link>
+        <Link href="/" className="text-xs text-forest/50 hover:text-forest transition">&larr; Next Route</Link>
         <h1 className="font-display text-3xl text-forest mb-1 mt-2">Panel de administrador</h1>
         <p className="text-sm text-forest/50 mb-6">
           Gestionando: <span className="font-medium text-forest">{rutas.find((r) => r.id === rutaSeleccionadaId)?.nombre ?? (modoSinRutas ? "Ruta del Valle" : "—")}</span>

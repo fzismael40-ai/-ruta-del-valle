@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Next-Router — Mérida",
-    short_name: "Next-Router",
+    name: "Next Route — Mérida",
+    short_name: "Next Route",
     description: "Rastreo de buses en tiempo real para varias rutas de transporte en Mérida.",
     start_url: "/",
     display: "standalone",

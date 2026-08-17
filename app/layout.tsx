@@ -2,11 +2,11 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Next-Router — Mérida",
+  title: "Next Route — Mérida",
   description:
     "Rastreo de buses en tiempo real para varias rutas de transporte en Mérida — empezando por Ruta del Valle (Hotel Valle Grande – Av. 19). Ocupación en vivo, próxima parada y refuerzos automáticos.",
   openGraph: {
-    title: "Next-Router — Mérida",
+    title: "Next Route — Mérida",
     description:
       "Rastreo de buses en tiempo real para varias rutas de transporte en Mérida.",
     locale: "es_VE",
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Next-Router",
+    title: "Next Route",
   },
 };
 

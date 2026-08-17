@@ -122,7 +122,6 @@ export default function RutaApp({ slug }: { slug: string }) {
   // migración de "rutas" — ver más abajo). "resuelta" distingue esos dos casos.
   const resuelta = ruta !== null;
   const rutaId = ruta && ruta !== "not-found" ? ruta.id : null;
-  const nombreRuta = ruta && ruta !== "not-found" ? ruta.nombre : "Ruta del Valle";
 
   useEffect(() => {
     const fetchRuta = async () => {
@@ -723,7 +722,7 @@ export default function RutaApp({ slug }: { slug: string }) {
               style={{ touchAction: "manipulation" }}
               className="font-display font-semibold text-lg text-forest select-none"
             >
-              {nombreRuta}
+              Next Route
             </button>
           </div>
           {!esAppInstalada && (
@@ -1150,6 +1149,17 @@ export default function RutaApp({ slug }: { slug: string }) {
                   Bus en ruta
                 </span>
               </div>
+              {mostrarBotonInstalar && (
+                <div className="text-center mt-8">
+                  <p className="text-xs text-white/40 mb-3">🗺️ Hay más rutas en proceso — descarga la app</p>
+                  <button
+                    onClick={descargarApp}
+                    className="text-sm font-medium px-6 py-3 rounded-full border border-white/30 text-white hover:bg-white/10 transition"
+                  >
+                    ⬇ Descargar
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
