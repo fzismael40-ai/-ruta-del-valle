@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { supabase } from "./supabaseClient";
+import { rutaIdaCarretera, rutaVueltaCarretera } from "./rutaCarreteras";
 
 const MapaRuta = dynamic(() => import("./MapaRuta"), { ssr: false });
 
@@ -22,7 +23,13 @@ type Bus = {
   clave_actual: string | null;
   clave_fecha: string | null;
   clave_fija: boolean;
+  parada_desde: string | null;
 };
+
+// Estimado fijo (no hay datos reales de tiempos aún) usado tanto para la
+// cuenta regresiva de "faltan X min" como para la duración de la animación
+// del bus moviéndose por la ruta entre paradas.
+const MINUTOS_ESTIMADOS_POR_PARADA = 3;
 
 // Cada unidad (piloto) y el coordinador tienen una clave que el admin asigna
 // día a día desde /admin — al cambiar la fecha, la clave de ayer deja de
@@ -59,6 +66,15 @@ export default function Home() {
   >([]);
   const prevBusesRef = useRef<Map<string, Bus>>(new Map());
   const lastSalidaRef = useRef<{ ida: number | null; vuelta: number | null }>({ ida: null, vuelta: null });
+  // Posición interpolada mientras el bus "camina" por la ruta real entre una
+  // parada y la siguiente (solo para buses sin GPS en vivo — con GPS activo
+  // se usa la posición real). animacionesRef guarda el intervalo activo por
+  // bus para poder cancelarlo si llega una actualización nueva a mitad de
+  // camino. paradasRef evita que el efecto de buses (que corre una sola vez)
+  // use una lista de paradas vieja al buscar las coordenadas.
+  const [posicionesAnimadas, setPosicionesAnimadas] = useState<Record<string, [number, number]>>({});
+  const animacionesRef = useRef<Record<string, ReturnType<typeof setInterval>>>({});
+  const paradasRef = useRef<Parada[]>([]);
   const [demanda, setDemanda] = useState<{ ida: number; vuelta: number } | null>(null);
   // Empieza vacío en ambos lados (servidor y cliente) para evitar un
   // desajuste de hidratación; el useEffect de abajo confirma lo verificado
@@ -178,6 +194,61 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    paradasRef.current = paradas;
+  }, [paradas]);
+
+  // Encuentra, dentro del trazado real de la vía, el tramo entre dos puntos
+  // (la parada anterior y la nueva) para animar al bus recorriéndolo, en vez
+  // de saltar directo en línea recta de una a otra.
+  const tramoDeRuta = (desde: [number, number], hasta: [number, number], sentido: "ida" | "vuelta"): [number, number][] => {
+    const ruta = (sentido === "vuelta" ? rutaVueltaCarretera : rutaIdaCarretera) as [number, number][];
+    if (ruta.length < 2) return [desde, hasta];
+    const idxCercano = (p: [number, number]) => {
+      let mejorI = 0;
+      let mejorD = Infinity;
+      ruta.forEach((q, i) => {
+        const d = (q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2;
+        if (d < mejorD) {
+          mejorD = d;
+          mejorI = i;
+        }
+      });
+      return mejorI;
+    };
+    const i1 = idxCercano(desde);
+    const i2 = idxCercano(hasta);
+    const [lo, hi] = i1 <= i2 ? [i1, i2] : [i2, i1];
+    let tramo = ruta.slice(lo, hi + 1);
+    if (i1 > i2) tramo = [...tramo].reverse();
+    return tramo.length >= 2 ? tramo : [desde, hasta];
+  };
+
+  const animarMovimientoBus = (busId: string, desde: [number, number], hasta: [number, number], sentido: "ida" | "vuelta") => {
+    const tramo = tramoDeRuta(desde, hasta, sentido);
+    const activa = animacionesRef.current[busId];
+    if (activa) clearInterval(activa);
+    const duracionMs = MINUTOS_ESTIMADOS_POR_PARADA * 60000;
+    const inicio = Date.now();
+    const intervalId = setInterval(() => {
+      const frac = Math.min(1, (Date.now() - inicio) / duracionMs);
+      const idx = Math.min(tramo.length - 1, Math.floor(frac * (tramo.length - 1)));
+      setPosicionesAnimadas((prev) => ({ ...prev, [busId]: tramo[idx] }));
+      if (frac >= 1) {
+        clearInterval(intervalId);
+        delete animacionesRef.current[busId];
+      }
+    }, 1000);
+    animacionesRef.current[busId] = intervalId;
+  };
+
+  useEffect(() => {
+    const animaciones = animacionesRef.current;
+    return () => {
+      Object.values(animaciones).forEach((id) => clearInterval(id));
+    };
+  }, []);
+
+  useEffect(() => {
     const fetchBuses = async () => {
       const { data } = await supabase.from("buses").select("*").order("nombre");
       if (!data) return;
@@ -195,6 +266,16 @@ export default function Home() {
             const gapMin = ultima ? Math.round((ts - ultima) / 60000) : null;
             lastSalidaRef.current[b.sentido] = ts;
             eventosNuevos.push({ id: b.id, nombre: b.nombre, sentido: b.sentido, at: ts, gapMin });
+          }
+          // Si avanzó de parada y no tiene GPS en vivo, se anima caminando
+          // por la vía real entre la parada anterior y la nueva, en vez de
+          // saltar directo.
+          if (anterior && anterior.parada_actual !== b.parada_actual && b.latitud === null && b.longitud === null) {
+            const paradaAnterior = paradasRef.current.find((p) => p.nombre === anterior.parada_actual);
+            const paradaNueva = paradasRef.current.find((p) => p.nombre === b.parada_actual);
+            if (paradaAnterior?.latitud != null && paradaAnterior?.longitud != null && paradaNueva?.latitud != null && paradaNueva?.longitud != null) {
+              animarMovimientoBus(b.id, [paradaAnterior.latitud, paradaAnterior.longitud], [paradaNueva.latitud, paradaNueva.longitud], b.sentido);
+            }
           }
         }
         if (eventosNuevos.length > 0) {
@@ -215,6 +296,7 @@ export default function Home() {
     return () => {
       supabase.removeChannel(channel);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -412,6 +494,7 @@ export default function Home() {
           ocupacion_actual: saleDesdeElValle ? 2 : 0,
           necesita_refuerzo: false,
           refuerzo_desde: null,
+          parada_desde: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
         .eq("id", miBus.id);
@@ -427,9 +510,19 @@ export default function Home() {
       .update({
         parada_orden: siguienteOrden,
         parada_actual: siguienteParada.nombre,
+        parada_desde: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
       .eq("id", miBus.id);
+  };
+
+  // Estimado de minutos para la siguiente parada: cuenta regresiva fija
+  // desde que el piloto avanzó a la parada actual (no hay datos reales de
+  // tiempos de recorrido todavía).
+  const minutosParaLaSiguiente = (bus: Bus | undefined): number | null => {
+    if (!bus?.parada_desde) return null;
+    const transcurridos = (ahora - new Date(bus.parada_desde).getTime()) / 60000;
+    return Math.max(0, Math.ceil(MINUTOS_ESTIMADOS_POR_PARADA - transcurridos));
   };
 
   const marcarAtendido = async (busId: string) => {
@@ -474,6 +567,19 @@ export default function Home() {
           necesita_refuerzo: b.necesita_refuerzo,
           lat: b.latitud,
           lng: b.longitud,
+          ocupacion_actual: b.ocupacion_actual,
+          capacidad_total: b.capacidad_total,
+        };
+      }
+      const animada = posicionesAnimadas[b.id];
+      if (animada) {
+        return {
+          id: b.id,
+          nombre: b.nombre,
+          sentido: b.sentido,
+          necesita_refuerzo: b.necesita_refuerzo,
+          lat: animada[0],
+          lng: animada[1],
           ocupacion_actual: b.ocupacion_actual,
           capacidad_total: b.capacidad_total,
         };
@@ -675,6 +781,15 @@ export default function Home() {
                 <p className="text-xs text-forest/50 mb-2">
                   Parada: {miBus?.parada_actual ?? "..."} · {miBus?.sentido === "vuelta" ? "Bajando hacia Av. 19" : "Subiendo hacia el Valle"}
                 </p>
+                {(() => {
+                  const min = minutosParaLaSiguiente(miBus);
+                  if (min === null) return null;
+                  return (
+                    <p className="text-xs text-teal-dark font-medium mb-2">
+                      {min === 0 ? "Está por llegar a la próxima parada" : `≈ ${min} min para la próxima parada`}
+                    </p>
+                  );
+                })()}
                 {busesActivos.length === 0 ? (
                   <p className="text-sm text-forest/50">Ninguna unidad en línea ahora mismo.</p>
                 ) : miBus ? (
