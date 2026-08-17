@@ -25,6 +25,43 @@ type ParadaEnMapa = {
   lng: number;
 };
 
+// Punto más cercano dentro de un segmento a-b (proyección, no solo el vértice
+// más próximo) — así el marcador queda pegado a la vía aunque el GPS real
+// haya quedado un poco a un lado.
+function puntoEnSegmento(p: Coord, a: Coord, b: Coord): Coord {
+  const [px, py] = p;
+  const [ax, ay] = a;
+  const [bx, by] = b;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const largo2 = dx * dx + dy * dy;
+  if (largo2 === 0) return a;
+  let t = ((px - ax) * dx + (py - ay) * dy) / largo2;
+  t = Math.max(0, Math.min(1, t));
+  return [ax + t * dx, ay + t * dy];
+}
+
+function distancia2(a: Coord, b: Coord): number {
+  const dLat = a[0] - b[0];
+  const dLng = a[1] - b[1];
+  return dLat * dLat + dLng * dLng;
+}
+
+function pegarARuta(punto: Coord, ruta: Coord[]): Coord {
+  if (ruta.length === 0) return punto;
+  let mejor = ruta[0];
+  let mejorDist = Infinity;
+  for (let i = 0; i < ruta.length - 1; i++) {
+    const candidato = puntoEnSegmento(punto, ruta[i], ruta[i + 1]);
+    const d = distancia2(punto, candidato);
+    if (d < mejorDist) {
+      mejorDist = d;
+      mejor = candidato;
+    }
+  }
+  return mejor;
+}
+
 export default function MapaRuta({
   rutaIda,
   rutaVuelta,
@@ -43,6 +80,20 @@ export default function MapaRuta({
   // es confiable para pedirlo en cada carga de página.
   const trazadoIda = rutaIdaCarretera.length > 0 ? rutaIdaCarretera : rutaIda;
   const trazadoVuelta = rutaVueltaCarretera.length > 0 ? rutaVueltaCarretera : rutaVuelta;
+
+  // Las paradas se guardan con su coordenada GPS real (para que el check-in
+  // por QR y las distancias sean exactas), pero para el dibujo en el mapa se
+  // proyectan sobre el trazado más cercano para que no se vean "flotando"
+  // lejos de la vía — es solo visual, no toca la coordenada real guardada.
+  const paradasEnRuta = paradas.map((p) => {
+    const candidatoIda = pegarARuta([p.lat, p.lng], trazadoIda);
+    const candidatoVuelta = pegarARuta([p.lat, p.lng], trazadoVuelta);
+    const masCercano =
+      distancia2([p.lat, p.lng], candidatoIda) <= distancia2([p.lat, p.lng], candidatoVuelta)
+        ? candidatoIda
+        : candidatoVuelta;
+    return { ...p, lat: masCercano[0], lng: masCercano[1] };
+  });
 
   const iconoParada = L.divIcon({
     className: "",
@@ -78,7 +129,7 @@ export default function MapaRuta({
       <Polyline positions={trazadoIda} pathOptions={{ color: "#C2542C", weight: 3, opacity: 0.6, dashArray: "6 6" }} />
       <Polyline positions={trazadoVuelta} pathOptions={{ color: "#1F3D2E", weight: 4, opacity: 0.8 }} />
 
-      {paradas.map((parada) => (
+      {paradasEnRuta.map((parada) => (
         <Marker key={parada.id} position={[parada.lat, parada.lng]} icon={iconoParada}>
           <Popup>
             <div style={{ textAlign: "center" }}>

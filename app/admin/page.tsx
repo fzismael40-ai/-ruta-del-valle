@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import { supabase } from "../supabaseClient";
 
@@ -44,6 +44,24 @@ export default function AdminPage() {
   const [editandoBusId, setEditandoBusId] = useState<string | null>(null);
   const [editBus, setEditBus] = useState({ nombre: "", capacidad: "" });
   const [confirmandoEliminarBusId, setConfirmandoEliminarBusId] = useState<string | null>(null);
+
+  // Arrastrar para reordenar (como una playlist): "base" es la lista al
+  // iniciar el arrastre, "orden" es la lista recalculada en vivo mientras se
+  // mueve el dedo. Al soltar, se renumera 1..N y se guarda en Supabase.
+  const [arrastre, setArrastre] = useState<{
+    campo: "orden" | "orden_vuelta";
+    pointerId: number;
+    itemId: string;
+    startY: number;
+    rowHeight: number;
+    base: Parada[];
+    idxOriginal: number;
+    orden: Parada[];
+  } | null>(null);
+  const arrastreRef = useRef(arrastre);
+  useEffect(() => {
+    arrastreRef.current = arrastre;
+  }, [arrastre]);
 
   const cargarDatos = async () => {
     const { data: p } = await supabase.from("paradas").select("id,nombre,orden,orden_vuelta,latitud,longitud").order("orden");
@@ -161,6 +179,59 @@ export default function AdminPage() {
     setEditandoParadaId(null);
     cargarDatos();
   };
+
+  const iniciarArrastre = (e: ReactPointerEvent, campo: "orden" | "orden_vuelta", id: string, rowEl: HTMLElement | null) => {
+    e.preventDefault();
+    const base = paradas.filter((p) => p[campo] !== null).sort((a, b) => (a[campo] as number) - (b[campo] as number));
+    const idxOriginal = base.findIndex((p) => p.id === id);
+    if (idxOriginal === -1) return;
+    const rowHeight = rowEl?.getBoundingClientRect().height ?? 44;
+    setArrastre({ campo, pointerId: e.pointerId, itemId: id, startY: e.clientY, rowHeight, base, idxOriginal, orden: base });
+  };
+
+  useEffect(() => {
+    if (!arrastre) return;
+
+    const onMove = (e: PointerEvent) => {
+      const a = arrastreRef.current;
+      if (!a || e.pointerId !== a.pointerId) return;
+      const deltaY = e.clientY - a.startY;
+      const shift = Math.round(deltaY / a.rowHeight);
+      const nuevoIdx = Math.max(0, Math.min(a.base.length - 1, a.idxOriginal + shift));
+      const item = a.base.find((p) => p.id === a.itemId)!;
+      const sinItem = a.base.filter((p) => p.id !== a.itemId);
+      sinItem.splice(nuevoIdx, 0, item);
+      setArrastre({ ...a, orden: sinItem });
+    };
+
+    const onUp = async (e: PointerEvent) => {
+      const a = arrastreRef.current;
+      if (!a || e.pointerId !== a.pointerId) return;
+      setArrastre(null);
+      for (let i = 0; i < a.orden.length; i++) {
+        const nuevoValor = i + 1;
+        if (a.orden[i][a.campo] !== nuevoValor) {
+          const r = await supabase.from("paradas").update({ [a.campo]: nuevoValor }).eq("id", a.orden[i].id).select();
+          if (r.error || !r.data || r.data.length === 0) {
+            setMensaje("No se pudo guardar el nuevo orden: revisa los permisos en Supabase.");
+            cargarDatos();
+            return;
+          }
+        }
+      }
+      cargarDatos();
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arrastre !== null]);
 
   const moverEnLista = async (campo: "orden" | "orden_vuelta", id: string, direccion: -1 | 1) => {
     // Reordena por posición y renumera 1..N en vez de intercambiar valores:
@@ -500,19 +571,31 @@ export default function AdminPage() {
         </section>
 
         {(["orden", "orden_vuelta"] as const).map((campo) => {
-          const enOrden = paradas
+          const enOrdenBase = paradas
             .filter((p) => p[campo] !== null)
             .sort((a, b) => (a[campo] as number) - (b[campo] as number));
+          const enOrden = arrastre && arrastre.campo === campo ? arrastre.orden : enOrdenBase;
           const sinOrden = paradas.filter((p) => p[campo] === null);
           const titulo = campo === "orden" ? "Orden de subida" : "Orden de bajada";
           return (
             <section key={campo} className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
               <h2 className="font-display text-lg text-forest mb-1">{titulo} ({enOrden.length})</h2>
-              <p className="text-xs text-forest/50 mb-3">Usa las flechas para poner las paradas en el orden real en que se caminan.</p>
-              <div className="space-y-1.5 mb-4">
+              <p className="text-xs text-forest/50 mb-3">Arrastra ☰ para reordenar (como una playlist), o usa las flechas.</p>
+              <div className="space-y-1.5 mb-4" style={{ touchAction: arrastre?.campo === campo ? "none" : undefined }}>
                 {enOrden.length === 0 && <p className="text-xs text-forest/40">Ninguna parada tiene orden de {campo === "orden" ? "subida" : "bajada"} todavía.</p>}
                 {enOrden.map((p, i) => (
-                  <div key={p.id} className="flex items-center gap-2 px-3 py-1.5 bg-cream rounded-lg text-sm">
+                  <div
+                    key={p.id}
+                    data-row
+                    className={`flex items-center gap-2 px-3 py-1.5 bg-cream rounded-lg text-sm ${arrastre?.itemId === p.id ? "shadow-md ring-2 ring-forest/30" : ""}`}
+                  >
+                    <button
+                      onPointerDown={(e) => iniciarArrastre(e, campo, p.id, e.currentTarget.closest("[data-row]") as HTMLElement)}
+                      style={{ touchAction: "none" }}
+                      className="shrink-0 w-7 h-7 rounded-full text-forest/50 cursor-grab active:cursor-grabbing select-none"
+                    >
+                      ☰
+                    </button>
                     <span className="text-forest/40 text-xs w-5 shrink-0">{i + 1}.</span>
                     <span className="text-forest flex-1 truncate">{p.nombre}</span>
                     <button
