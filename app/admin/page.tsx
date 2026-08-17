@@ -438,7 +438,9 @@ export default function AdminPage() {
   const generarClaveAleatoria = () => String(Math.floor(1000 + Math.random() * 9000));
 
   const asignarClaveBus = async (busId: string) => {
-    const clave = (claveBusInput[busId] ?? "").trim();
+    const bus = buses.find((b) => b.id === busId);
+    const claveActual = bus?.clave_fecha === hoy() ? bus?.clave_actual ?? "" : "";
+    const clave = (claveBusInput[busId] ?? claveActual).trim();
     if (!clave) {
       setMensaje("Escribe o genera una clave antes de asignarla.");
       return;
@@ -458,7 +460,8 @@ export default function AdminPage() {
   };
 
   const asignarClaveCoordinador = async () => {
-    const clave = claveCoordInput.trim();
+    const claveActual = claveCoordDia.fecha === hoy() ? claveCoordDia.clave ?? "" : "";
+    const clave = (claveCoordInput || claveActual).trim();
     if (!clave) {
       setMensaje("Escribe o genera una clave antes de asignarla.");
       return;
@@ -853,7 +856,7 @@ export default function AdminPage() {
                       {b.clave_fecha === hoy() ? `Clave hoy: ${b.clave_actual}` : "Sin clave para hoy"}
                     </span>
                     <input
-                      value={claveBusInput[b.id] ?? ""}
+                      value={claveBusInput[b.id] ?? (b.clave_fecha === hoy() ? b.clave_actual ?? "" : "")}
                       onChange={(e) => setClaveBusInput((prev) => ({ ...prev, [b.id]: e.target.value }))}
                       placeholder="Nueva clave"
                       className="flex-1 min-w-0 text-xs border border-forest/15 rounded-lg px-2 py-1"
@@ -892,7 +895,7 @@ export default function AdminPage() {
               {claveCoordDia.fecha === hoy() ? `Clave hoy: ${claveCoordDia.clave}` : "Sin clave para hoy"}
             </span>
             <input
-              value={claveCoordInput}
+              value={claveCoordInput || (claveCoordDia.fecha === hoy() ? claveCoordDia.clave ?? "" : "")}
               onChange={(e) => setClaveCoordInput(e.target.value)}
               placeholder="Nueva clave"
               className="flex-1 min-w-0 text-xs border border-forest/15 rounded-lg px-2 py-1"
