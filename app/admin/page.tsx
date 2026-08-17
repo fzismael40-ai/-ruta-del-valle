@@ -43,6 +43,7 @@ export default function AdminPage() {
   const [confirmandoEliminarId, setConfirmandoEliminarId] = useState<string | null>(null);
   const [editandoBusId, setEditandoBusId] = useState<string | null>(null);
   const [editBus, setEditBus] = useState({ nombre: "", capacidad: "" });
+  const [confirmandoEliminarBusId, setConfirmandoEliminarBusId] = useState<string | null>(null);
 
   const cargarDatos = async () => {
     const { data: p } = await supabase.from("paradas").select("id,nombre,orden,orden_vuelta,latitud,longitud").order("orden");
@@ -215,6 +216,7 @@ export default function AdminPage() {
 
   const iniciarEdicionBus = (b: Bus) => {
     setEditandoBusId(b.id);
+    setConfirmandoEliminarBusId(null);
     setEditBus({ nombre: b.nombre, capacidad: b.capacidad_total.toString() });
   };
 
@@ -237,6 +239,22 @@ export default function AdminPage() {
       return;
     }
     setMensaje("Unidad actualizada.");
+    setEditandoBusId(null);
+    cargarDatos();
+  };
+
+  const eliminarBus = async (id: string) => {
+    const { data, error } = await supabase.from("buses").delete().eq("id", id).select();
+    if (error) {
+      setMensaje(`Error al eliminar: ${error.message}`);
+      return;
+    }
+    if (!data || data.length === 0) {
+      setMensaje("No se pudo eliminar: falta el permiso en Supabase (pide el SQL de DELETE para buses).");
+      return;
+    }
+    setMensaje("Unidad eliminada.");
+    setConfirmandoEliminarBusId(null);
     setEditandoBusId(null);
     cargarDatos();
   };
@@ -593,6 +611,23 @@ export default function AdminPage() {
                       Cancelar
                     </button>
                   </div>
+                  {confirmandoEliminarBusId === b.id ? (
+                    <div className="flex gap-2 pt-1 border-t border-forest/10 mt-1">
+                      <button onClick={() => eliminarBus(b.id)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full bg-terracotta text-white">
+                        Sí, eliminar
+                      </button>
+                      <button onClick={() => setConfirmandoEliminarBusId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-forest">
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmandoEliminarBusId(b.id)}
+                      className="w-full text-xs font-medium px-3 py-1.5 rounded-full border border-terracotta text-terracotta hover:bg-terracotta/10 transition"
+                    >
+                      🗑 Eliminar unidad
+                    </button>
+                  )}
                 </div>
               ) : (
                 <button

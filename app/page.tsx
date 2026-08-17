@@ -294,6 +294,19 @@ export default function Home() {
     return Math.floor((ahora - new Date(refuerzoDesde).getTime()) / 60000);
   };
 
+  // Semáforo de ocupación: verde/teal hasta la mitad, amarillo de ahí a
+  // lleno, rojo cuando ya está lleno — usado en piloto, pasajero y coordinador.
+  const estiloOcupacion = (actual: number, capacidad: number) => {
+    const pct = capacidad > 0 ? actual / capacidad : 0;
+    if (pct >= 1) {
+      return { barra: "bg-terracotta", chip: "bg-terracotta/20 text-terracotta-dark", pill: "bg-terracotta/15", dot: "bg-terracotta", texto: "text-terracotta-dark", etiqueta: "Bus lleno — refuerzo en camino" };
+    }
+    if (pct >= 0.5) {
+      return { barra: "bg-mustard", chip: "bg-mustard/30 text-mustard-dark", pill: "bg-mustard/15", dot: "bg-mustard", texto: "text-mustard-dark", etiqueta: "Se está llenando" };
+    }
+    return { barra: "bg-teal", chip: "bg-teal/20 text-teal-dark", pill: "bg-teal/15", dot: "bg-teal", texto: "text-teal-dark", etiqueta: "Cupos disponibles" };
+  };
+
   const CAPACIDAD_BUSETA = 17;
   const CAPACIDAD_BUS = 30;
   const recomendarUnidad = (esperando: number) => {
@@ -618,12 +631,15 @@ export default function Home() {
                 ) : miBus ? (
                   <>
                     <p className="font-display text-xl text-forest mb-1">{miBus.nombre}: {miBus.ocupacion_actual}/{miBus.capacidad_total} cupos</p>
-                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-4 ${miBus.necesita_refuerzo ? "bg-terracotta/15" : "bg-teal/15"}`}>
-                      <span className={`w-2 h-2 rounded-full ${miBus.necesita_refuerzo ? "bg-terracotta" : "bg-teal"}`}></span>
-                      <span className={`text-xs font-medium ${miBus.necesita_refuerzo ? "text-terracotta-dark" : "text-teal-dark"}`}>
-                        {miBus.necesita_refuerzo ? "Bus lleno — refuerzo en camino" : "Cupos disponibles"}
-                      </span>
-                    </div>
+                    {(() => {
+                      const e = estiloOcupacion(miBus.ocupacion_actual, miBus.capacidad_total);
+                      return (
+                        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-4 ${e.pill}`}>
+                          <span className={`w-2 h-2 rounded-full ${e.dot}`}></span>
+                          <span className={`text-xs font-medium ${e.texto}`}>{e.etiqueta}</span>
+                        </div>
+                      );
+                    })()}
                   </>
                 ) : <p className="text-sm text-forest/50">Cargando...</p>}
               </div>
@@ -676,7 +692,10 @@ export default function Home() {
                       <span className="text-sm text-forest/60">/ {miBus?.capacidad_total ?? 30} pasajeros</span>
                     </div>
                     <div className="h-2 bg-cream rounded-full overflow-hidden mb-4">
-                      <div className="h-full bg-mustard" style={{width: `${miBus ? (miBus.ocupacion_actual/miBus.capacidad_total)*100 : 0}%`}}></div>
+                      <div
+                        className={`h-full transition-colors ${miBus ? estiloOcupacion(miBus.ocupacion_actual, miBus.capacidad_total).barra : "bg-teal"}`}
+                        style={{width: `${miBus ? (miBus.ocupacion_actual/miBus.capacidad_total)*100 : 0}%`}}
+                      ></div>
                     </div>
                     <div className="flex gap-3 mb-3">
                       <button onClick={() => bump(-1)} className="flex-1 py-2.5 rounded-full border border-forest/30 text-forest text-sm font-medium">− Bajó</button>
@@ -740,7 +759,7 @@ export default function Home() {
                   return (
                     <div key={bus.id} className="flex justify-between items-center px-3 py-2.5 bg-cream rounded-lg mb-2">
                       <span className="text-sm text-forest">{bus.nombre} — {bus.parada_actual}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${pct >= 100 ? "bg-terracotta/20 text-terracotta-dark" : "bg-mustard/30 text-mustard-dark"}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${estiloOcupacion(bus.ocupacion_actual, bus.capacidad_total).chip}`}>
                         {pct}%
                       </span>
                     </div>
@@ -756,7 +775,7 @@ export default function Home() {
                   return (
                     <div key={bus.id} className="flex justify-between items-center px-3 py-2.5 bg-cream rounded-lg mb-2">
                       <span className="text-sm text-forest">{bus.nombre} — {bus.parada_actual}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${pct >= 100 ? "bg-terracotta/20 text-terracotta-dark" : "bg-mustard/30 text-mustard-dark"}`}>
+                      <span className={`text-xs px-2 py-0.5 rounded font-medium ${estiloOcupacion(bus.ocupacion_actual, bus.capacidad_total).chip}`}>
                         {pct}%
                       </span>
                     </div>
