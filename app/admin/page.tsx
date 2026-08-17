@@ -233,29 +233,6 @@ export default function AdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arrastre !== null]);
 
-  const moverEnLista = async (campo: "orden" | "orden_vuelta", id: string, direccion: -1 | 1) => {
-    // Reordena por posición y renumera 1..N en vez de intercambiar valores:
-    // así también corrige de una vez paradas con el mismo número repetido
-    // (un intercambio de valores no mueve nada si ambas ya comparten número).
-    const lista = paradas
-      .filter((p) => p[campo] !== null)
-      .sort((a, b) => (a[campo] as number) - (b[campo] as number));
-    const idx = lista.findIndex((p) => p.id === id);
-    const otroIdx = idx + direccion;
-    if (idx === -1 || otroIdx < 0 || otroIdx >= lista.length) return;
-    [lista[idx], lista[otroIdx]] = [lista[otroIdx], lista[idx]];
-    for (let i = 0; i < lista.length; i++) {
-      const nuevoValor = i + 1;
-      if (lista[i][campo] !== nuevoValor) {
-        const r = await supabase.from("paradas").update({ [campo]: nuevoValor }).eq("id", lista[i].id).select();
-        if (r.error || !r.data || r.data.length === 0) {
-          setMensaje("No se pudo mover: revisa los permisos en Supabase.");
-          return;
-        }
-      }
-    }
-    cargarDatos();
-  };
 
   const quitarDeLista = async (campo: "orden" | "orden_vuelta", id: string) => {
     const lista = paradas.filter((p) => p[campo] !== null).sort((a, b) => (a[campo] as number) - (b[campo] as number));
@@ -580,7 +557,7 @@ export default function AdminPage() {
           return (
             <section key={campo} className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
               <h2 className="font-display text-lg text-forest mb-1">{titulo} ({enOrden.length})</h2>
-              <p className="text-xs text-forest/50 mb-3">Arrastra ☰ para reordenar (como una playlist), o usa las flechas.</p>
+              <p className="text-xs text-forest/50 mb-3">Arrastra ☰ para poner cada parada en el orden real en que se camina.</p>
               <div className="space-y-1.5 mb-4" style={{ touchAction: arrastre?.campo === campo ? "none" : undefined }}>
                 {enOrden.length === 0 && <p className="text-xs text-forest/40">Ninguna parada tiene orden de {campo === "orden" ? "subida" : "bajada"} todavía.</p>}
                 {enOrden.map((p, i) => (
@@ -599,20 +576,6 @@ export default function AdminPage() {
                     <span className="text-forest/40 text-xs w-5 shrink-0">{i + 1}.</span>
                     <span className="text-forest flex-1 truncate">{p.nombre}</span>
                     <button
-                      onClick={() => moverEnLista(campo, p.id, -1)}
-                      disabled={i === 0}
-                      className="shrink-0 w-7 h-7 rounded-full border border-forest/20 text-forest disabled:opacity-25 hover:bg-forest/5 transition"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      onClick={() => moverEnLista(campo, p.id, 1)}
-                      disabled={i === enOrden.length - 1}
-                      className="shrink-0 w-7 h-7 rounded-full border border-forest/20 text-forest disabled:opacity-25 hover:bg-forest/5 transition"
-                    >
-                      ↓
-                    </button>
-                    <button
                       onClick={() => quitarDeLista(campo, p.id)}
                       className="shrink-0 w-7 h-7 rounded-full border border-terracotta/40 text-terracotta hover:bg-terracotta/10 transition"
                     >
@@ -623,7 +586,7 @@ export default function AdminPage() {
               </div>
               {sinOrden.length > 0 && (
                 <>
-                  <p className="text-xs text-forest/50 mb-2">Sin orden de {campo === "orden" ? "subida" : "bajada"} — agrégalas al final y luego súbelas con las flechas:</p>
+                  <p className="text-xs text-forest/50 mb-2">Sin orden de {campo === "orden" ? "subida" : "bajada"} — agrégalas al final y luego arrástralas con ☰ a su lugar:</p>
                   <div className="space-y-1.5">
                     {sinOrden.map((p) => (
                       <div key={p.id} className="flex items-center justify-between gap-2 px-3 py-1.5 bg-cream/60 rounded-lg text-sm">
