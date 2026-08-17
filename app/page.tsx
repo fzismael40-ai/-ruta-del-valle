@@ -21,6 +21,7 @@ type Bus = {
   activo: boolean;
   clave_actual: string | null;
   clave_fecha: string | null;
+  clave_fija: boolean;
 };
 
 // Cada unidad (piloto) y el coordinador tienen una clave que el admin asigna
@@ -68,7 +69,7 @@ export default function Home() {
   const [verificacionesPiloto, setVerificacionesPiloto] = useState<Record<string, { fecha: string; clave: string }>>({});
   const [claveBusInput, setClaveBusInput] = useState("");
   const [claveBusError, setClaveBusError] = useState(false);
-  const [claveDiaCoordinador, setClaveDiaCoordinador] = useState<{ clave: string | null; fecha: string | null }>({ clave: null, fecha: null });
+  const [claveDiaCoordinador, setClaveDiaCoordinador] = useState<{ clave: string | null; fecha: string | null; fija: boolean }>({ clave: null, fecha: null, fija: false });
   const [verificacionCoordinador, setVerificacionCoordinador] = useState<{ fecha: string; clave: string } | null>(null);
   const [claveCoordInput, setClaveCoordInput] = useState("");
   const [claveCoordError, setClaveCoordError] = useState(false);
@@ -98,8 +99,8 @@ export default function Home() {
 
   useEffect(() => {
     const fetchClaveCoordinador = async () => {
-      const { data } = await supabase.from("claves_dia").select("clave,fecha").eq("rol", "coordinador").maybeSingle();
-      setClaveDiaCoordinador({ clave: data?.clave ?? null, fecha: data?.fecha ?? null });
+      const { data } = await supabase.from("claves_dia").select("*").eq("rol", "coordinador").maybeSingle();
+      setClaveDiaCoordinador({ clave: data?.clave ?? null, fecha: data?.fecha ?? null, fija: data?.fija ?? false });
     };
     fetchClaveCoordinador();
   }, []);
@@ -137,7 +138,7 @@ export default function Home() {
   };
 
   const intentarDesbloquearBus = (bus: Bus) => {
-    if (bus.clave_fecha === hoy() && bus.clave_actual !== null && claveBusInput === bus.clave_actual) {
+    if ((bus.clave_fija || bus.clave_fecha === hoy()) && bus.clave_actual !== null && claveBusInput === bus.clave_actual) {
       const nuevas = { ...verificacionesPiloto, [bus.id]: { fecha: hoy(), clave: bus.clave_actual } };
       localStorage.setItem("piloto-verificaciones", JSON.stringify(nuevas));
       setVerificacionesPiloto(nuevas);
@@ -149,7 +150,7 @@ export default function Home() {
   };
 
   const intentarDesbloquearCoordinador = () => {
-    if (claveDiaCoordinador.fecha === hoy() && claveDiaCoordinador.clave !== null && claveCoordInput === claveDiaCoordinador.clave) {
+    if ((claveDiaCoordinador.fija || claveDiaCoordinador.fecha === hoy()) && claveDiaCoordinador.clave !== null && claveCoordInput === claveDiaCoordinador.clave) {
       const nueva = { fecha: hoy(), clave: claveDiaCoordinador.clave };
       localStorage.setItem("coordinador-verificacion", JSON.stringify(nueva));
       setVerificacionCoordinador(nueva);
@@ -253,16 +254,19 @@ export default function Home() {
   const esFinalDeLista = miBus ? miBus.parada_orden >= totalParadas : false;
 
   const pilotoBusDesbloqueado = (bus: Bus | undefined) => {
-    if (!bus || bus.clave_fecha !== hoy() || bus.clave_actual === null) return false;
+    if (!bus || bus.clave_actual === null || (!bus.clave_fija && bus.clave_fecha !== hoy())) return false;
     const verificada = verificacionesPiloto[bus.id];
-    return verificada?.fecha === hoy() && verificada?.clave === bus.clave_actual;
+    if (!verificada || verificada.clave !== bus.clave_actual) return false;
+    // Con clave fija no hace falta que la verificación sea de hoy: se queda
+    // desbloqueado hasta que el admin cambie la clave.
+    return bus.clave_fija || verificada.fecha === hoy();
   };
   const miBusDesbloqueado = pilotoBusDesbloqueado(miBus);
-  const coordinadorDesbloqueado =
-    claveDiaCoordinador.fecha === hoy() &&
-    claveDiaCoordinador.clave !== null &&
-    verificacionCoordinador?.fecha === hoy() &&
-    verificacionCoordinador?.clave === claveDiaCoordinador.clave;
+  const coordinadorDesbloqueado = (() => {
+    if (claveDiaCoordinador.clave === null || (!claveDiaCoordinador.fija && claveDiaCoordinador.fecha !== hoy())) return false;
+    if (!verificacionCoordinador || verificacionCoordinador.clave !== claveDiaCoordinador.clave) return false;
+    return claveDiaCoordinador.fija || verificacionCoordinador.fecha === hoy();
+  })();
 
   // Ubicación real del piloto: mientras esté activa, actualiza la posición
   // del bus seleccionado en Supabase (máximo una escritura cada 5s).
@@ -702,7 +706,7 @@ export default function Home() {
                   <p className="text-sm text-forest/50">Cargando...</p>
                 ) : !miBusDesbloqueado ? (
                   <div className="py-2">
-                    {miBus.clave_fecha !== hoy() ? (
+                    {miBus.clave_actual === null || (!miBus.clave_fija && miBus.clave_fecha !== hoy()) ? (
                       <p className="text-sm text-forest/60">
                         Todavía no hay clave asignada hoy para {miBus.nombre}. Pídesela al coordinador o al admin.
                       </p>
@@ -778,11 +782,11 @@ export default function Home() {
               <div className={`view ${role==="coordinador" ? "active" : ""}`}>
                 {!coordinadorDesbloqueado ? (
                   <div className="py-2">
-                    {claveDiaCoordinador.fecha !== hoy() ? (
+                    {claveDiaCoordinador.clave === null || (!claveDiaCoordinador.fija && claveDiaCoordinador.fecha !== hoy()) ? (
                       <p className="text-sm text-forest/60">Todavía no hay clave asignada hoy para coordinador. Pídesela al admin.</p>
                     ) : (
                       <>
-                        <p className="text-sm text-forest/60 mb-3">Acceso solo para coordinadores. Ingresa la clave de hoy:</p>
+                        <p className="text-sm text-forest/60 mb-3">Acceso solo para coordinadores. Ingresa la clave:</p>
                         <input
                           type="password"
                           value={claveCoordInput}
