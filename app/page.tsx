@@ -24,7 +24,14 @@ type Bus = {
   clave_fecha: string | null;
   clave_fija: boolean;
   parada_desde: string | null;
+  ubicacion_actualizada: string | null;
 };
+
+// Si el GPS no manda una ubicación nueva en más de esto, se considera
+// "sin señal" (aunque haya un último punto real guardado) y el bus pasa al
+// modo animado — pasa seguido en el tramo entre la laguna artificial y la
+// Alfarería, donde tarda en agarrar señal de nuevo.
+const UMBRAL_GPS_SIN_SENAL_MS = 20000;
 
 // Estimado fijo (no hay datos reales de tiempos aún) usado tanto para la
 // cuenta regresiva de "faltan X min" como para la duración de la animación
@@ -267,14 +274,28 @@ export default function Home() {
             lastSalidaRef.current[b.sentido] = ts;
             eventosNuevos.push({ id: b.id, nombre: b.nombre, sentido: b.sentido, at: ts, gapMin });
           }
-          // Si avanzó de parada y no tiene GPS en vivo, se anima caminando
-          // por la vía real entre la parada anterior y la nueva, en vez de
-          // saltar directo.
-          if (anterior && anterior.parada_actual !== b.parada_actual && b.latitud === null && b.longitud === null) {
-            const paradaAnterior = paradasRef.current.find((p) => p.nombre === anterior.parada_actual);
+          // Si avanzó de parada y no tiene GPS en vivo (nunca lo tuvo, o se
+          // quedó sin señal — como suele pasar entre la laguna artificial y
+          // la Alfarería), se anima caminando por la vía real entre el
+          // último punto conocido y la parada nueva, en vez de saltar
+          // directo o quedarse congelado.
+          const gpsViejo =
+            b.ubicacion_actualizada !== null && Date.now() - new Date(b.ubicacion_actualizada).getTime() >= UMBRAL_GPS_SIN_SENAL_MS;
+          const sinGpsEnVivo = b.latitud === null || b.longitud === null || gpsViejo;
+          if (anterior && anterior.parada_actual !== b.parada_actual && sinGpsEnVivo) {
             const paradaNueva = paradasRef.current.find((p) => p.nombre === b.parada_actual);
-            if (paradaAnterior?.latitud != null && paradaAnterior?.longitud != null && paradaNueva?.latitud != null && paradaNueva?.longitud != null) {
-              animarMovimientoBus(b.id, [paradaAnterior.latitud, paradaAnterior.longitud], [paradaNueva.latitud, paradaNueva.longitud], b.sentido);
+            let desde: [number, number] | null = null;
+            if (b.latitud !== null && b.longitud !== null) {
+              // Último punto GPS real conocido, aunque la señal ya esté vieja.
+              desde = [b.latitud, b.longitud];
+            } else {
+              const paradaAnterior = paradasRef.current.find((p) => p.nombre === anterior.parada_actual);
+              if (paradaAnterior?.latitud != null && paradaAnterior?.longitud != null) {
+                desde = [paradaAnterior.latitud, paradaAnterior.longitud];
+              }
+            }
+            if (desde && paradaNueva?.latitud != null && paradaNueva?.longitud != null) {
+              animarMovimientoBus(b.id, desde, [paradaNueva.latitud, paradaNueva.longitud], b.sentido);
             }
           }
         }
@@ -331,6 +352,16 @@ export default function Home() {
   // debe ocultar todos los buses de golpe.
   const busesActivos = buses.filter((b) => b.activo !== false);
 
+  // GPS "fresco" = llegó una ubicación real hace menos de UMBRAL_GPS_SIN_SENAL_MS.
+  // Si el bus tiene lat/lng pero la señal se puso vieja, se trata como si no
+  // tuviera GPS en vivo (cae al modo animado) en vez de quedarse congelado en
+  // el último punto real.
+  const gpsFresco = (bus: Bus | undefined) => {
+    if (!bus || bus.latitud === null || bus.longitud === null) return false;
+    if (!bus.ubicacion_actualizada) return true; // migración vieja sin esta columna: no se puede saber, se asume fresco
+    return ahora - new Date(bus.ubicacion_actualizada).getTime() < UMBRAL_GPS_SIN_SENAL_MS;
+  };
+
   const idBusEfectivo = busSeleccionadoId ?? busesActivos[0]?.id ?? buses[0]?.id ?? null;
   const miBus = buses.find((b) => b.id === idBusEfectivo) ?? buses[0];
   const listaActual = miBus?.sentido === "vuelta" ? paradasVuelta : paradasIda;
@@ -372,6 +403,7 @@ export default function Home() {
           .update({
             latitud: pos.coords.latitude,
             longitud: pos.coords.longitude,
+            ubicacion_actualizada: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
           .eq("id", busId);
@@ -557,9 +589,9 @@ export default function Home() {
 
   const busesEnMapa = busesActivos
     .map((b) => {
-      // Si el piloto tiene GPS activo, usamos su ubicación real; si no,
-      // caemos a la posición aproximada de la parada donde está reportado.
-      if (b.latitud !== null && b.longitud !== null) {
+      // Si el piloto tiene GPS activo y con señal reciente, usamos su
+      // ubicación real; si no, caemos a la animación o a la parada.
+      if (gpsFresco(b) && b.latitud !== null && b.longitud !== null) {
         return {
           id: b.id,
           nombre: b.nombre,
