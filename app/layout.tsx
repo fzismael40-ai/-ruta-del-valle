@@ -2,19 +2,19 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Ruta del Valle — Mérida",
+  title: "Next-Router — Mérida",
   description:
-    "Rastreo de buses en tiempo real para la ruta Hotel Valle Grande – Av. 19, en Mérida. Ocupación en vivo, próxima parada y refuerzos automáticos.",
+    "Rastreo de buses en tiempo real para varias rutas de transporte en Mérida — empezando por Ruta del Valle (Hotel Valle Grande – Av. 19). Ocupación en vivo, próxima parada y refuerzos automáticos.",
   openGraph: {
-    title: "Ruta del Valle — Mérida",
+    title: "Next-Router — Mérida",
     description:
-      "Rastreo de buses en tiempo real para la ruta Hotel Valle Grande – Av. 19, en Mérida.",
+      "Rastreo de buses en tiempo real para varias rutas de transporte en Mérida.",
     locale: "es_VE",
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Ruta del Valle",
+    title: "Next-Router",
   },
 };
 

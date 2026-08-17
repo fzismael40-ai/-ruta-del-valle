@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Ruta del Valle — Mérida",
-    short_name: "Ruta del Valle",
-    description: "Rastreo de buses en tiempo real para la ruta Hotel Valle Grande – Av. 19, en Mérida.",
+    name: "Next-Router — Mérida",
+    short_name: "Next-Router",
+    description: "Rastreo de buses en tiempo real para varias rutas de transporte en Mérida.",
     start_url: "/",
     display: "standalone",
     background_color: "#F5EFE1",

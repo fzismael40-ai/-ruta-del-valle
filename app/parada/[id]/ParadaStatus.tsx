@@ -17,6 +17,7 @@ type Parada = {
   nombre: string;
   orden: number | null;
   orden_vuelta: number | null;
+  ruta_id: string | null;
 };
 
 function estadoDireccion(busesDireccion: Bus[], ordenParada: number | null) {
@@ -37,6 +38,7 @@ const VENTANA_ESPERA_MIN = 30;
 
 export default function ParadaStatus({ id }: { id: string }) {
   const [parada, setParada] = useState<Parada | null | "not-found">(null);
+  const [rutaSlug, setRutaSlug] = useState<string | null>(null);
   const [buses, setBuses] = useState<Bus[]>([]);
   const [checkinsDisponibles, setCheckinsDisponibles] = useState(true);
   const [conteo, setConteo] = useState<{ ida: number; vuelta: number }>({ ida: 0, vuelta: 0 });
@@ -57,8 +59,12 @@ export default function ParadaStatus({ id }: { id: string }) {
 
   useEffect(() => {
     const fetchParada = async () => {
-      const { data } = await supabase.from("paradas").select("id,nombre,orden,orden_vuelta").eq("id", id).maybeSingle();
+      const { data } = await supabase.from("paradas").select("*").eq("id", id).maybeSingle();
       setParada(data ?? "not-found");
+      if (data?.ruta_id) {
+        const { data: ruta } = await supabase.from("rutas").select("slug").eq("id", data.ruta_id).maybeSingle();
+        setRutaSlug(ruta?.slug ?? null);
+      }
     };
     fetchParada();
   }, [id]);
@@ -102,10 +108,13 @@ export default function ParadaStatus({ id }: { id: string }) {
   };
 
   useEffect(() => {
+    if (!parada || parada === "not-found" || !parada.ruta_id) return;
+    const rutaId = parada.ruta_id;
     const fetchBuses = async () => {
       const { data } = await supabase
         .from("buses")
         .select("id,nombre,ocupacion_actual,capacidad_total,parada_orden,sentido")
+        .eq("ruta_id", rutaId)
         .order("nombre");
       if (data) setBuses(data as Bus[]);
     };
@@ -113,20 +122,20 @@ export default function ParadaStatus({ id }: { id: string }) {
 
     const channel = supabase
       .channel(`parada-${id}-realtime`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "buses" }, () => fetchBuses())
+      .on("postgres_changes", { event: "*", schema: "public", table: "buses", filter: `ruta_id=eq.${rutaId}` }, () => fetchBuses())
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [id]);
+  }, [id, parada]);
 
   if (parada === "not-found") {
     return (
       <main className="min-h-screen bg-cream flex items-center justify-center px-6 text-center">
         <div>
           <p className="font-display text-2xl text-forest mb-3">Parada no encontrada</p>
-          <Link href="/" className="text-sm text-terracotta hover:underline">Volver al inicio</Link>
+          <Link href="/" className="text-sm text-terracotta hover:underline">Ver todas las rutas</Link>
         </div>
       </main>
     );
@@ -151,7 +160,7 @@ export default function ParadaStatus({ id }: { id: string }) {
   return (
     <main className="min-h-screen bg-cream px-6 py-10">
       <div className="max-w-sm mx-auto">
-        <Link href="/" className="text-xs text-forest/50 hover:text-forest transition">&larr; Ruta del Valle</Link>
+        <Link href={rutaSlug ? `/r/${rutaSlug}` : "/"} className="text-xs text-forest/50 hover:text-forest transition">&larr; Volver</Link>
 
         <p className="text-terracotta text-xs font-semibold tracking-widest uppercase mt-4 mb-2">Estado de esta parada</p>
         <h1 className="font-display text-3xl text-forest mb-8">{parada.nombre}</h1>

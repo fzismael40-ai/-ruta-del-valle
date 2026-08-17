@@ -24,7 +24,27 @@ type Bus = {
   clave_fija: boolean;
 };
 
+type Ruta = {
+  id: string;
+  nombre: string;
+  slug: string;
+  descripcion: string | null;
+  activa: boolean;
+};
+
 const hoy = () => new Date().toISOString().slice(0, 10);
+
+const slugify = (texto: string) =>
+  texto
+    .toLowerCase()
+    .replace(/[áàäâ]/g, "a")
+    .replace(/[éèëê]/g, "e")
+    .replace(/[íìïî]/g, "i")
+    .replace(/[óòöô]/g, "o")
+    .replace(/[úùüû]/g, "u")
+    .replace(/ñ/g, "n")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 
 export default function AdminPage() {
   // Empieza bloqueado en ambos lados (servidor y cliente) para evitar un
@@ -38,6 +58,12 @@ export default function AdminPage() {
   const [buses, setBuses] = useState<Bus[]>([]);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [fijandoId, setFijandoId] = useState<string | null>(null);
+
+  const [rutas, setRutas] = useState<Ruta[]>([]);
+  const [rutaSeleccionadaId, setRutaSeleccionadaId] = useState<string | null>(null);
+  const [nuevaRuta, setNuevaRuta] = useState({ nombre: "", slug: "", descripcion: "" });
+  const [editandoRutaId, setEditandoRutaId] = useState<string | null>(null);
+  const [editRuta, setEditRuta] = useState({ nombre: "", descripcion: "", activa: true });
 
   const [nuevaParada, setNuevaParada] = useState({ nombre: "", lat: "", lng: "" });
   const [agregandoParada, setAgregandoParada] = useState(false);
@@ -79,12 +105,21 @@ export default function AdminPage() {
     arrastreRef.current = arrastre;
   }, [arrastre]);
 
-  const cargarDatos = async () => {
-    const { data: p } = await supabase.from("paradas").select("id,nombre,orden,orden_vuelta,latitud,longitud").order("orden");
+  const cargarRutas = async () => {
+    const { data } = await supabase.from("rutas").select("*").order("nombre");
+    const lista = (data as Ruta[]) ?? [];
+    setRutas(lista);
+    setRutaSeleccionadaId((prev) => (prev && lista.some((r) => r.id === prev) ? prev : lista[0]?.id ?? null));
+  };
+
+  const cargarDatos = async (rutaId?: string) => {
+    const id = rutaId ?? rutaSeleccionadaId;
+    if (!id) return;
+    const { data: p } = await supabase.from("paradas").select("id,nombre,orden,orden_vuelta,latitud,longitud").eq("ruta_id", id).order("orden");
     if (p) setParadas(p as Parada[]);
-    const { data: b } = await supabase.from("buses").select("*").order("nombre");
+    const { data: b } = await supabase.from("buses").select("*").eq("ruta_id", id).order("nombre");
     if (b) setBuses(b as Bus[]);
-    const { data: cd } = await supabase.from("claves_dia").select("*").eq("rol", "coordinador").maybeSingle();
+    const { data: cd } = await supabase.from("claves_dia").select("*").eq("ruta_id", id).eq("rol", "coordinador").maybeSingle();
     setClaveCoordDia({ clave: cd?.clave ?? null, fecha: cd?.fecha ?? null, fija: cd?.fija ?? false });
   };
 
@@ -96,8 +131,15 @@ export default function AdminPage() {
   useEffect(() => {
     if (!desbloqueado) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    cargarDatos();
+    cargarRutas();
   }, [desbloqueado]);
+
+  useEffect(() => {
+    if (!rutaSeleccionadaId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    cargarDatos(rutaSeleccionadaId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rutaSeleccionadaId]);
 
   const intentarDesbloquear = () => {
     if (claveInput === CLAVE_ADMIN) {
@@ -107,6 +149,57 @@ export default function AdminPage() {
     } else {
       setClaveError(true);
     }
+  };
+
+  const agregarRuta = async () => {
+    if (!nuevaRuta.nombre.trim()) {
+      setMensaje("Ponle un nombre a la ruta.");
+      return;
+    }
+    const slug = (nuevaRuta.slug.trim() || slugify(nuevaRuta.nombre)) || `ruta-${Date.now()}`;
+    const { data, error } = await supabase
+      .from("rutas")
+      .insert({ nombre: nuevaRuta.nombre.trim(), slug, descripcion: nuevaRuta.descripcion.trim() || null, activa: false })
+      .select();
+    if (error) {
+      setMensaje(`Error al agregar ruta: ${error.message}`);
+      return;
+    }
+    if (!data || data.length === 0) {
+      setMensaje("No se pudo agregar: falta permiso en Supabase para la tabla rutas.");
+      return;
+    }
+    setMensaje(`Ruta "${nuevaRuta.nombre}" agregada — queda "Próximamente" hasta que la actives.`);
+    setNuevaRuta({ nombre: "", slug: "", descripcion: "" });
+    cargarRutas();
+  };
+
+  const iniciarEdicionRuta = (r: Ruta) => {
+    setEditandoRutaId(r.id);
+    setEditRuta({ nombre: r.nombre, descripcion: r.descripcion ?? "", activa: r.activa });
+  };
+
+  const guardarEdicionRuta = async (id: string) => {
+    if (!editRuta.nombre.trim()) {
+      setMensaje("El nombre no puede quedar vacío.");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("rutas")
+      .update({ nombre: editRuta.nombre.trim(), descripcion: editRuta.descripcion.trim() || null, activa: editRuta.activa })
+      .eq("id", id)
+      .select();
+    if (error) {
+      setMensaje(`Error al guardar: ${error.message}`);
+      return;
+    }
+    if (!data || data.length === 0) {
+      setMensaje("No se guardó: falta permiso en Supabase para actualizar rutas.");
+      return;
+    }
+    setMensaje("Ruta actualizada.");
+    setEditandoRutaId(null);
+    cargarRutas();
   };
 
   const fijarUbicacionAqui = (paradaId: string) => {
@@ -484,6 +577,10 @@ export default function AdminPage() {
   };
 
   const asignarClaveCoordinador = async () => {
+    if (!rutaSeleccionadaId) {
+      setMensaje("Elige primero qué ruta estás gestionando.");
+      return;
+    }
     const claveActual = claveCoordDia.fecha === hoy() ? claveCoordDia.clave ?? "" : "";
     const clave = (claveCoordInput || claveActual).trim();
     if (!clave) {
@@ -493,7 +590,7 @@ export default function AdminPage() {
     const fija = claveCoordFijaInput || claveCoordDia.fija;
     const { data, error } = await supabase
       .from("claves_dia")
-      .upsert({ rol: "coordinador", clave, fecha: hoy(), fija }, { onConflict: "rol" })
+      .upsert({ ruta_id: rutaSeleccionadaId, rol: "coordinador", clave, fecha: hoy(), fija }, { onConflict: "ruta_id,rol" })
       .select();
     if (error) {
       setMensaje(`Error al asignar clave: ${error.message}`);
@@ -526,6 +623,10 @@ export default function AdminPage() {
       setMensaje("Ponle un nombre a la parada.");
       return;
     }
+    if (!rutaSeleccionadaId) {
+      setMensaje("Elige primero qué ruta estás gestionando.");
+      return;
+    }
     setAgregandoParada(true);
 
     let lat: number | null = null;
@@ -551,6 +652,7 @@ export default function AdminPage() {
       orden_vuelta: null,
       latitud: lat,
       longitud: lng,
+      ruta_id: rutaSeleccionadaId,
     });
     setAgregandoParada(false);
     if (error) {
@@ -574,6 +676,10 @@ export default function AdminPage() {
       setMensaje("Ponle un nombre a la unidad.");
       return;
     }
+    if (!rutaSeleccionadaId) {
+      setMensaje("Elige primero qué ruta estás gestionando.");
+      return;
+    }
     const { error } = await supabase.from("buses").insert({
       nombre: nuevoBus.nombre.trim(),
       capacidad_total: Number(nuevoBus.capacidad) || 17,
@@ -581,6 +687,7 @@ export default function AdminPage() {
       sentido: "ida",
       parada_orden: 1,
       necesita_refuerzo: false,
+      ruta_id: rutaSeleccionadaId,
     });
     if (error) {
       setMensaje(`Error al agregar unidad: ${error.message}`);
@@ -595,7 +702,7 @@ export default function AdminPage() {
     return (
       <main className="min-h-screen bg-cream flex items-center justify-center px-6">
         <div className="max-w-sm w-full">
-          <p className="font-display text-2xl text-forest mb-4 text-center">Panel de administrador</p>
+          <p className="font-display text-2xl text-forest mb-4 text-center">Next-Router — Panel de administrador</p>
           <input
             type="password"
             value={claveInput}
@@ -619,8 +726,11 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-cream px-6 py-10">
       <div className="max-w-2xl mx-auto">
-        <Link href="/" className="text-xs text-forest/50 hover:text-forest transition">&larr; Ruta del Valle</Link>
-        <h1 className="font-display text-3xl text-forest mb-6 mt-2">Panel de administrador</h1>
+        <Link href="/" className="text-xs text-forest/50 hover:text-forest transition">&larr; Next-Router</Link>
+        <h1 className="font-display text-3xl text-forest mb-1 mt-2">Panel de administrador</h1>
+        <p className="text-sm text-forest/50 mb-6">
+          Gestionando: <span className="font-medium text-forest">{rutas.find((r) => r.id === rutaSeleccionadaId)?.nombre ?? "—"}</span>
+        </p>
 
         {mensaje && (
           <div className="bg-teal/15 text-teal-dark text-sm rounded-lg px-4 py-2.5 mb-6 flex justify-between items-center">
@@ -628,6 +738,82 @@ export default function AdminPage() {
             <button onClick={() => setMensaje(null)} className="text-teal-dark/60 hover:text-teal-dark ml-3">✕</button>
           </div>
         )}
+
+        <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
+          <h2 className="font-display text-lg text-forest mb-3">Rutas</h2>
+          <p className="text-xs text-forest/50 mb-3">Toca una ruta para gestionarla (paradas, unidades y claves de abajo aplican a la que esté seleccionada).</p>
+          <div className="space-y-2 mb-4">
+            {rutas.map((r) =>
+              editandoRutaId === r.id ? (
+                <div key={r.id} className="px-3 py-2.5 bg-cream rounded-lg text-sm space-y-2">
+                  <input
+                    value={editRuta.nombre}
+                    onChange={(e) => setEditRuta({ ...editRuta, nombre: e.target.value })}
+                    placeholder="Nombre"
+                    className="w-full text-sm border border-forest/15 rounded-lg px-3 py-1.5"
+                  />
+                  <input
+                    value={editRuta.descripcion}
+                    onChange={(e) => setEditRuta({ ...editRuta, descripcion: e.target.value })}
+                    placeholder="Descripción corta (opcional)"
+                    className="w-full text-sm border border-forest/15 rounded-lg px-3 py-1.5"
+                  />
+                  <label className="flex items-center gap-1.5 text-xs text-forest/60">
+                    <input
+                      type="checkbox"
+                      checked={editRuta.activa}
+                      onChange={(e) => setEditRuta({ ...editRuta, activa: e.target.checked })}
+                    />
+                    Activa (visible para elegir; si no, sale como &quot;Próximamente&quot;)
+                  </label>
+                  <div className="flex gap-2">
+                    <button onClick={() => guardarEdicionRuta(r.id)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full bg-forest text-white">
+                      Guardar
+                    </button>
+                    <button onClick={() => setEditandoRutaId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-forest">
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  key={r.id}
+                  className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-sm ${
+                    r.id === rutaSeleccionadaId ? "bg-forest/10 ring-1 ring-forest/30" : "bg-cream"
+                  }`}
+                >
+                  <button onClick={() => setRutaSeleccionadaId(r.id)} className="text-left flex-1 min-w-0">
+                    <span className="text-forest font-medium">{r.nombre}</span>
+                    {!r.activa && <span className="ml-2 text-xs text-forest/40">Próximamente</span>}
+                  </button>
+                  <button
+                    onClick={() => iniciarEdicionRuta(r)}
+                    className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-forest hover:bg-forest/5 transition"
+                  >
+                    editar
+                  </button>
+                </div>
+              )
+            )}
+          </div>
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <input
+              value={nuevaRuta.nombre}
+              onChange={(e) => setNuevaRuta({ ...nuevaRuta, nombre: e.target.value })}
+              placeholder="Nombre (ej: Los Chorros)"
+              className="col-span-2 sm:col-span-1 text-sm border border-forest/15 rounded-lg px-3 py-2"
+            />
+            <input
+              value={nuevaRuta.descripcion}
+              onChange={(e) => setNuevaRuta({ ...nuevaRuta, descripcion: e.target.value })}
+              placeholder="Descripción corta (opcional)"
+              className="text-sm border border-forest/15 rounded-lg px-3 py-2"
+            />
+          </div>
+          <button onClick={agregarRuta} className="text-sm font-medium px-4 py-2 rounded-full bg-forest text-white hover:bg-forest-dark transition">
+            Agregar ruta
+          </button>
+        </section>
 
         <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
           <h2 className="font-display text-lg text-forest mb-3">Agregar parada</h2>
