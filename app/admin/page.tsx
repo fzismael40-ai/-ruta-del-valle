@@ -823,6 +823,37 @@ export default function AdminPage() {
                       Cancelar
                     </button>
                   </div>
+                  <div className="pt-2 border-t border-forest/10">
+                    <p className="text-xs text-forest/50 mb-1.5">Clave de hoy para el piloto de esta unidad:</p>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full border shrink-0 ${
+                          b.clave_fecha === hoy() ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-forest/40"
+                        }`}
+                      >
+                        {b.clave_fecha === hoy() ? "Hoy ✓" : "Sin asignar"}
+                      </span>
+                      <input
+                        value={claveBusInput[b.id] ?? (b.clave_fecha === hoy() ? b.clave_actual ?? "" : "")}
+                        onChange={(e) => setClaveBusInput((prev) => ({ ...prev, [b.id]: e.target.value }))}
+                        placeholder="Clave"
+                        className="flex-1 min-w-0 text-xs border border-forest/15 rounded-lg px-2 py-1"
+                      />
+                      <button
+                        onClick={() => setClaveBusInput((prev) => ({ ...prev, [b.id]: generarClaveAleatoria() }))}
+                        title="Generar clave aleatoria"
+                        className="shrink-0 text-xs px-2 py-1 rounded-lg border border-forest/20 text-forest hover:bg-forest/5 transition"
+                      >
+                        🎲
+                      </button>
+                      <button
+                        onClick={() => asignarClaveBus(b.id)}
+                        className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-lg bg-forest text-white hover:bg-forest-dark transition"
+                      >
+                        Asignar
+                      </button>
+                    </div>
+                  </div>
                   {confirmandoEliminarBusId === b.id ? (
                     <div className="flex gap-2 pt-1 border-t border-forest/10 mt-1">
                       <button onClick={() => eliminarBus(b.id)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full bg-terracotta text-white">
