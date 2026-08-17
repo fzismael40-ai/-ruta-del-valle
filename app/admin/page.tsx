@@ -342,6 +342,68 @@ export default function AdminPage() {
     cargarDatos();
   };
 
+  const quitarBajaDe = async (id: string) => {
+    const maestra = paradas.filter((p) => p.orden_vuelta !== null).sort((a, b) => (a.orden_vuelta as number) - (b.orden_vuelta as number));
+    const restante = maestra.filter((p) => p.id !== id);
+    const r = await supabase.from("paradas").update({ orden_vuelta: null }).eq("id", id).select();
+    if (r.error || !r.data || r.data.length === 0) {
+      setMensaje("No se pudo cambiar: revisa los permisos en Supabase.");
+      return;
+    }
+    for (let i = 0; i < restante.length; i++) {
+      const nuevoValor = i + 1;
+      if (restante[i].orden_vuelta !== nuevoValor) {
+        await supabase.from("paradas").update({ orden_vuelta: nuevoValor }).eq("id", restante[i].id);
+      }
+    }
+    const patched = paradas.map((p) => {
+      if (p.id === id) return { ...p, orden_vuelta: null };
+      const idx = restante.findIndex((r2) => r2.id === p.id);
+      return idx !== -1 ? { ...p, orden_vuelta: idx + 1 } : p;
+    });
+    await sincronizarSubidaDesdeBajada(patched);
+    cargarDatos();
+  };
+
+  // Toggles de "Sube" / "Baja" para usar directamente desde la lista de
+  // Paradas: si la parada ya está en la lista maestra de bajada, reusa la
+  // sincronización con espejo; si no, es un cambio aislado (agregar/quitar
+  // en un solo sentido) que no afecta al otro.
+  const alternarSube = async (id: string) => {
+    const p = paradas.find((x) => x.id === id);
+    if (!p) return;
+    if (p.orden_vuelta !== null) {
+      await alternarTambienSube(id);
+      return;
+    }
+    if (p.orden !== null) {
+      const r = await supabase.from("paradas").update({ orden: null }).eq("id", id).select();
+      if (r.error || !r.data || r.data.length === 0) {
+        setMensaje("No se pudo cambiar: revisa los permisos en Supabase.");
+        return;
+      }
+    } else {
+      const subida = paradas.filter((x) => x.orden !== null);
+      const siguiente = subida.length > 0 ? Math.max(...subida.map((x) => x.orden as number)) + 1 : 1;
+      const r = await supabase.from("paradas").update({ orden: siguiente }).eq("id", id).select();
+      if (r.error || !r.data || r.data.length === 0) {
+        setMensaje("No se pudo cambiar: revisa los permisos en Supabase.");
+        return;
+      }
+    }
+    cargarDatos();
+  };
+
+  const alternarBaja = async (id: string) => {
+    const p = paradas.find((x) => x.id === id);
+    if (!p) return;
+    if (p.orden_vuelta !== null) {
+      await quitarBajaDe(id);
+    } else {
+      await agregarAlFinalDeOrden(id);
+    }
+  };
+
   const iniciarEdicionBus = (b: Bus) => {
     setEditandoBusId(b.id);
     setConfirmandoEliminarBusId(null);
@@ -606,21 +668,40 @@ export default function AdminPage() {
                   )}
                 </div>
               ) : (
-                <div key={p.id} className="flex items-center justify-between gap-3 px-3 py-2 bg-cream rounded-lg text-sm">
-                  <button onClick={() => iniciarEdicionParada(p)} className="text-left flex-1 min-w-0">
-                    <p className="text-forest font-medium hover:underline">{p.nombre}</p>
-                    <p className="text-forest/50 text-xs">
-                      subida {p.orden ?? "—"} · bajada {p.orden_vuelta ?? "—"} ·{" "}
+                <div key={p.id} className="flex flex-col gap-1.5 px-3 py-2 bg-cream rounded-lg text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <button onClick={() => iniciarEdicionParada(p)} className="text-left flex-1 min-w-0">
+                      <p className="text-forest font-medium hover:underline">{p.nombre}</p>
+                    </button>
+                    <button
+                      onClick={() => fijarUbicacionAqui(p.id)}
+                      disabled={fijandoId === p.id}
+                      className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-terracotta text-terracotta hover:bg-terracotta/10 transition disabled:opacity-50"
+                    >
+                      {fijandoId === p.id ? "Ubicando..." : p.latitud !== null ? "📍 Recalibrar" : "📍 Fijar aquí"}
+                    </button>
+                  </div>
+                  <div className="flex items-center flex-wrap gap-1.5">
+                    <span className="text-forest/40 text-xs">
                       {p.latitud !== null ? `${p.latitud.toFixed(5)}, ${p.longitud?.toFixed(5)}` : "sin ubicar"}
-                    </p>
-                  </button>
-                  <button
-                    onClick={() => fijarUbicacionAqui(p.id)}
-                    disabled={fijandoId === p.id}
-                    className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-terracotta text-terracotta hover:bg-terracotta/10 transition disabled:opacity-50"
-                  >
-                    {fijandoId === p.id ? "Ubicando..." : p.latitud !== null ? "📍 Recalibrar" : "📍 Fijar aquí"}
-                  </button>
+                    </span>
+                    <button
+                      onClick={() => alternarSube(p.id)}
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full border transition ${
+                        p.orden !== null ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-forest/40"
+                      }`}
+                    >
+                      ↑ sube{p.orden !== null ? ` (${p.orden})` : ""}
+                    </button>
+                    <button
+                      onClick={() => alternarBaja(p.id)}
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full border transition ${
+                        p.orden_vuelta !== null ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-forest/40"
+                      }`}
+                    >
+                      ↓ baja{p.orden_vuelta !== null ? ` (${p.orden_vuelta})` : ""}
+                    </button>
+                  </div>
                 </div>
               )
             )}
