@@ -144,6 +144,9 @@ export default function Home() {
       setVerificacionesPiloto(nuevas);
       setClaveBusError(false);
       setClaveBusInput("");
+      // Al entrar con la clave del día, la unidad vuelve a aparecer en el
+      // mapa: así no depende de que el piloto se acuerde de "Reincorporarme".
+      supabase.from("buses").update({ activo: true }).eq("id", bus.id);
     } else {
       setClaveBusError(true);
     }

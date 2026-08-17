@@ -449,7 +449,14 @@ export default function AdminPage() {
       return;
     }
     const fija = claveBusFija[busId] ?? bus?.clave_fija ?? false;
-    const { data, error } = await supabase.from("buses").update({ clave_actual: clave, clave_fecha: hoy(), clave_fija: fija }).eq("id", busId).select();
+    // Al asignar clave, la unidad queda oculta del mapa (activo: false) hasta
+    // que el piloto de turno entre con esa clave — así no depende de que
+    // alguien se acuerde de tocar "Salir de la línea" al rotar turnos.
+    const { data, error } = await supabase
+      .from("buses")
+      .update({ clave_actual: clave, clave_fecha: hoy(), clave_fija: fija, activo: false })
+      .eq("id", busId)
+      .select();
     if (error) {
       setMensaje(`Error al asignar clave: ${error.message}`);
       return;
