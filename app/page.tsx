@@ -19,10 +19,14 @@ type Bus = {
   sentido: "ida" | "vuelta";
   refuerzo_desde: string | null;
   activo: boolean;
+  clave_actual: string | null;
+  clave_fecha: string | null;
 };
 
-const CLAVE_PILOTO = "valle2026";
-const CLAVE_COORDINADOR = "coordina2026";
+// Cada unidad (piloto) y el coordinador tienen una clave que el admin asigna
+// día a día desde /admin — al cambiar la fecha, la clave de ayer deja de
+// servir sola, así que cada turno nuevo necesita que le den la de hoy.
+const hoy = () => new Date().toISOString().slice(0, 10);
 
 type PromptInstalacion = Event & {
   prompt: () => void;
@@ -55,13 +59,17 @@ export default function Home() {
   const prevBusesRef = useRef<Map<string, Bus>>(new Map());
   const lastSalidaRef = useRef<{ ida: number | null; vuelta: number | null }>({ ida: null, vuelta: null });
   const [demanda, setDemanda] = useState<{ ida: number; vuelta: number } | null>(null);
-  // Empieza bloqueado en ambos lados (servidor y cliente) para evitar un
-  // desajuste de hidratación; el useEffect de abajo confirma el desbloqueo
+  // Empieza vacío en ambos lados (servidor y cliente) para evitar un
+  // desajuste de hidratación; el useEffect de abajo confirma lo verificado
   // leyendo localStorage solo en el navegador, después del primer render.
-  const [pilotoDesbloqueado, setPilotoDesbloqueado] = useState(false);
-  const [claveInput, setClaveInput] = useState("");
-  const [claveError, setClaveError] = useState(false);
-  const [coordinadorDesbloqueado, setCoordinadorDesbloqueado] = useState(false);
+  // Guarda, por bus, la última clave verificada y la fecha en que se
+  // verificó — si la fecha no es hoy, o el admin cambió la clave del bus
+  // desde entonces, se vuelve a pedir.
+  const [verificacionesPiloto, setVerificacionesPiloto] = useState<Record<string, { fecha: string; clave: string }>>({});
+  const [claveBusInput, setClaveBusInput] = useState("");
+  const [claveBusError, setClaveBusError] = useState(false);
+  const [claveDiaCoordinador, setClaveDiaCoordinador] = useState<{ clave: string | null; fecha: string | null }>({ clave: null, fecha: null });
+  const [verificacionCoordinador, setVerificacionCoordinador] = useState<{ fecha: string; clave: string } | null>(null);
   const [claveCoordInput, setClaveCoordInput] = useState("");
   const [claveCoordError, setClaveCoordError] = useState(false);
   const [ubicacionActiva, setUbicacionActiva] = useState(false);
@@ -73,9 +81,27 @@ export default function Home() {
   const [esAppInstalada, setEsAppInstalada] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (localStorage.getItem("piloto-clave") === CLAVE_PILOTO) setPilotoDesbloqueado(true);
-    if (localStorage.getItem("coordinador-clave") === CLAVE_COORDINADOR) setCoordinadorDesbloqueado(true);
+    try {
+      const guardadas = JSON.parse(localStorage.getItem("piloto-verificaciones") ?? "{}");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setVerificacionesPiloto(guardadas);
+    } catch {
+      // localStorage corrupto o vacío: se queda sin nada verificado.
+    }
+    try {
+      const guardada = JSON.parse(localStorage.getItem("coordinador-verificacion") ?? "null");
+      setVerificacionCoordinador(guardada);
+    } catch {
+      // localStorage corrupto o vacío: se queda sin verificar.
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchClaveCoordinador = async () => {
+      const { data } = await supabase.from("claves_dia").select("clave,fecha").eq("rol", "coordinador").maybeSingle();
+      setClaveDiaCoordinador({ clave: data?.clave ?? null, fecha: data?.fecha ?? null });
+    };
+    fetchClaveCoordinador();
   }, []);
 
   useEffect(() => {
@@ -110,21 +136,25 @@ export default function Home() {
     );
   };
 
-  const intentarDesbloquearPiloto = () => {
-    if (claveInput === CLAVE_PILOTO) {
-      localStorage.setItem("piloto-clave", CLAVE_PILOTO);
-      setPilotoDesbloqueado(true);
-      setClaveError(false);
+  const intentarDesbloquearBus = (bus: Bus) => {
+    if (bus.clave_fecha === hoy() && bus.clave_actual !== null && claveBusInput === bus.clave_actual) {
+      const nuevas = { ...verificacionesPiloto, [bus.id]: { fecha: hoy(), clave: bus.clave_actual } };
+      localStorage.setItem("piloto-verificaciones", JSON.stringify(nuevas));
+      setVerificacionesPiloto(nuevas);
+      setClaveBusError(false);
+      setClaveBusInput("");
     } else {
-      setClaveError(true);
+      setClaveBusError(true);
     }
   };
 
   const intentarDesbloquearCoordinador = () => {
-    if (claveCoordInput === CLAVE_COORDINADOR) {
-      localStorage.setItem("coordinador-clave", CLAVE_COORDINADOR);
-      setCoordinadorDesbloqueado(true);
+    if (claveDiaCoordinador.fecha === hoy() && claveDiaCoordinador.clave !== null && claveCoordInput === claveDiaCoordinador.clave) {
+      const nueva = { fecha: hoy(), clave: claveDiaCoordinador.clave };
+      localStorage.setItem("coordinador-verificacion", JSON.stringify(nueva));
+      setVerificacionCoordinador(nueva);
       setClaveCoordError(false);
+      setClaveCoordInput("");
     } else {
       setClaveCoordError(true);
     }
@@ -222,10 +252,22 @@ export default function Home() {
   const esVuelta = miBus?.sentido === "vuelta";
   const esFinalDeLista = miBus ? miBus.parada_orden >= totalParadas : false;
 
+  const pilotoBusDesbloqueado = (bus: Bus | undefined) => {
+    if (!bus || bus.clave_fecha !== hoy() || bus.clave_actual === null) return false;
+    const verificada = verificacionesPiloto[bus.id];
+    return verificada?.fecha === hoy() && verificada?.clave === bus.clave_actual;
+  };
+  const miBusDesbloqueado = pilotoBusDesbloqueado(miBus);
+  const coordinadorDesbloqueado =
+    claveDiaCoordinador.fecha === hoy() &&
+    claveDiaCoordinador.clave !== null &&
+    verificacionCoordinador?.fecha === hoy() &&
+    verificacionCoordinador?.clave === claveDiaCoordinador.clave;
+
   // Ubicación real del piloto: mientras esté activa, actualiza la posición
   // del bus seleccionado en Supabase (máximo una escritura cada 5s).
   useEffect(() => {
-    if (role !== "piloto" || !pilotoDesbloqueado || !miBus?.id || !navigator.geolocation) {
+    if (role !== "piloto" || !miBusDesbloqueado || !miBus?.id || !navigator.geolocation) {
       return;
     }
     const busId = miBus.id;
@@ -254,12 +296,12 @@ export default function Home() {
     return () => {
       navigator.geolocation.clearWatch(watchId);
     };
-  }, [role, pilotoDesbloqueado, miBus?.id]);
+  }, [role, miBusDesbloqueado, miBus?.id]);
 
   // Mantiene la pantalla encendida mientras el piloto está rastreando, y la
   // vuelve a pedir si el navegador la soltó al cambiar de pestaña.
   useEffect(() => {
-    if (role !== "piloto" || !pilotoDesbloqueado || !("wakeLock" in navigator)) return;
+    if (role !== "piloto" || !miBusDesbloqueado || !("wakeLock" in navigator)) return;
     let sentinel: WakeLockSentinel | null = null;
     let cancelado = false;
 
@@ -287,7 +329,7 @@ export default function Home() {
       document.removeEventListener("visibilitychange", alVolverVisible);
       sentinel?.release();
     };
-  }, [role, pilotoDesbloqueado]);
+  }, [role, miBusDesbloqueado]);
 
   const minutosEsperando = (refuerzoDesde: string | null) => {
     if (!refuerzoDesde) return 0;
@@ -645,35 +687,45 @@ export default function Home() {
               </div>
 
               <div className={`view ${role==="piloto" ? "active" : ""}`}>
-                {!pilotoDesbloqueado ? (
+                {buses.length > 0 && (
+                  <select
+                    value={miBus?.id ?? ""}
+                    onChange={(e) => { setBusSeleccionadoId(e.target.value); setClaveBusInput(""); setClaveBusError(false); }}
+                    className="w-full mb-3 text-xs font-medium text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
+                  >
+                    {buses.map((b) => (
+                      <option key={b.id} value={b.id}>{b.nombre}</option>
+                    ))}
+                  </select>
+                )}
+                {!miBus ? (
+                  <p className="text-sm text-forest/50">Cargando...</p>
+                ) : !miBusDesbloqueado ? (
                   <div className="py-2">
-                    <p className="text-sm text-forest/60 mb-3">Acceso solo para pilotos. Ingresa la clave de turno:</p>
-                    <input
-                      type="password"
-                      value={claveInput}
-                      onChange={(e) => { setClaveInput(e.target.value); setClaveError(false); }}
-                      onKeyDown={(e) => e.key === "Enter" && intentarDesbloquearPiloto()}
-                      placeholder="Clave"
-                      className="w-full mb-2 text-sm text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
-                    />
-                    {claveError && <p className="text-xs text-terracotta mb-2">Clave incorrecta.</p>}
-                    <button onClick={intentarDesbloquearPiloto} className="w-full py-2.5 rounded-full bg-forest text-white text-sm font-medium">
-                      Entrar
-                    </button>
+                    {miBus.clave_fecha !== hoy() ? (
+                      <p className="text-sm text-forest/60">
+                        Todavía no hay clave asignada hoy para {miBus.nombre}. Pídesela al coordinador o al admin.
+                      </p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-forest/60 mb-3">Clave de hoy para {miBus.nombre}:</p>
+                        <input
+                          type="password"
+                          value={claveBusInput}
+                          onChange={(e) => { setClaveBusInput(e.target.value); setClaveBusError(false); }}
+                          onKeyDown={(e) => e.key === "Enter" && intentarDesbloquearBus(miBus)}
+                          placeholder="Clave"
+                          className="w-full mb-2 text-sm text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
+                        />
+                        {claveBusError && <p className="text-xs text-terracotta mb-2">Clave incorrecta.</p>}
+                        <button onClick={() => intentarDesbloquearBus(miBus)} className="w-full py-2.5 rounded-full bg-forest text-white text-sm font-medium">
+                          Entrar
+                        </button>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <>
-                    {buses.length > 0 && (
-                      <select
-                        value={miBus?.id ?? ""}
-                        onChange={(e) => setBusSeleccionadoId(e.target.value)}
-                        className="w-full mb-3 text-xs font-medium text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
-                      >
-                        {buses.map((b) => (
-                          <option key={b.id} value={b.id}>{b.nombre}</option>
-                        ))}
-                      </select>
-                    )}
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`w-2 h-2 rounded-full ${ubicacionActiva ? "bg-teal" : "bg-forest/25"}`}></span>
                       <span className="text-xs text-forest/50">
@@ -726,19 +778,25 @@ export default function Home() {
               <div className={`view ${role==="coordinador" ? "active" : ""}`}>
                 {!coordinadorDesbloqueado ? (
                   <div className="py-2">
-                    <p className="text-sm text-forest/60 mb-3">Acceso solo para coordinadores. Ingresa la clave:</p>
-                    <input
-                      type="password"
-                      value={claveCoordInput}
-                      onChange={(e) => { setClaveCoordInput(e.target.value); setClaveCoordError(false); }}
-                      onKeyDown={(e) => e.key === "Enter" && intentarDesbloquearCoordinador()}
-                      placeholder="Clave"
-                      className="w-full mb-2 text-sm text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
-                    />
-                    {claveCoordError && <p className="text-xs text-terracotta mb-2">Clave incorrecta.</p>}
-                    <button onClick={intentarDesbloquearCoordinador} className="w-full py-2.5 rounded-full bg-forest text-white text-sm font-medium">
-                      Entrar
-                    </button>
+                    {claveDiaCoordinador.fecha !== hoy() ? (
+                      <p className="text-sm text-forest/60">Todavía no hay clave asignada hoy para coordinador. Pídesela al admin.</p>
+                    ) : (
+                      <>
+                        <p className="text-sm text-forest/60 mb-3">Acceso solo para coordinadores. Ingresa la clave de hoy:</p>
+                        <input
+                          type="password"
+                          value={claveCoordInput}
+                          onChange={(e) => { setClaveCoordInput(e.target.value); setClaveCoordError(false); }}
+                          onKeyDown={(e) => e.key === "Enter" && intentarDesbloquearCoordinador()}
+                          placeholder="Clave"
+                          className="w-full mb-2 text-sm text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
+                        />
+                        {claveCoordError && <p className="text-xs text-terracotta mb-2">Clave incorrecta.</p>}
+                        <button onClick={intentarDesbloquearCoordinador} className="w-full py-2.5 rounded-full bg-forest text-white text-sm font-medium">
+                          Entrar
+                        </button>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <>

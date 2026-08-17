@@ -19,7 +19,11 @@ type Bus = {
   nombre: string;
   capacidad_total: number;
   sentido: "ida" | "vuelta";
+  clave_actual: string | null;
+  clave_fecha: string | null;
 };
+
+const hoy = () => new Date().toISOString().slice(0, 10);
 
 export default function AdminPage() {
   // Empieza bloqueado en ambos lados (servidor y cliente) para evitar un
@@ -44,6 +48,9 @@ export default function AdminPage() {
   const [editandoBusId, setEditandoBusId] = useState<string | null>(null);
   const [editBus, setEditBus] = useState({ nombre: "", capacidad: "" });
   const [confirmandoEliminarBusId, setConfirmandoEliminarBusId] = useState<string | null>(null);
+  const [claveBusInput, setClaveBusInput] = useState<Record<string, string>>({});
+  const [claveCoordDia, setClaveCoordDia] = useState<{ clave: string | null; fecha: string | null }>({ clave: null, fecha: null });
+  const [claveCoordInput, setClaveCoordInput] = useState("");
 
   // Arrastrar para reordenar (como una playlist): "base" es la lista al
   // iniciar el arrastre, "orden" es la lista recalculada en vivo mientras se
@@ -68,8 +75,10 @@ export default function AdminPage() {
   const cargarDatos = async () => {
     const { data: p } = await supabase.from("paradas").select("id,nombre,orden,orden_vuelta,latitud,longitud").order("orden");
     if (p) setParadas(p as Parada[]);
-    const { data: b } = await supabase.from("buses").select("id,nombre,capacidad_total,sentido").order("nombre");
+    const { data: b } = await supabase.from("buses").select("*").order("nombre");
     if (b) setBuses(b as Bus[]);
+    const { data: cd } = await supabase.from("claves_dia").select("clave,fecha").eq("rol", "coordinador").maybeSingle();
+    setClaveCoordDia({ clave: cd?.clave ?? null, fecha: cd?.fecha ?? null });
   };
 
   useEffect(() => {
@@ -423,6 +432,51 @@ export default function AdminPage() {
     setMensaje("Unidad eliminada.");
     setConfirmandoEliminarBusId(null);
     setEditandoBusId(null);
+    cargarDatos();
+  };
+
+  const generarClaveAleatoria = () => String(Math.floor(1000 + Math.random() * 9000));
+
+  const asignarClaveBus = async (busId: string) => {
+    const clave = (claveBusInput[busId] ?? "").trim();
+    if (!clave) {
+      setMensaje("Escribe o genera una clave antes de asignarla.");
+      return;
+    }
+    const { data, error } = await supabase.from("buses").update({ clave_actual: clave, clave_fecha: hoy() }).eq("id", busId).select();
+    if (error) {
+      setMensaje(`Error al asignar clave: ${error.message}`);
+      return;
+    }
+    if (!data || data.length === 0) {
+      setMensaje("No se pudo asignar: falta permiso en Supabase para actualizar buses.");
+      return;
+    }
+    setMensaje(`Clave de hoy asignada a la unidad.`);
+    setClaveBusInput((prev) => ({ ...prev, [busId]: "" }));
+    cargarDatos();
+  };
+
+  const asignarClaveCoordinador = async () => {
+    const clave = claveCoordInput.trim();
+    if (!clave) {
+      setMensaje("Escribe o genera una clave antes de asignarla.");
+      return;
+    }
+    const { data, error } = await supabase
+      .from("claves_dia")
+      .upsert({ rol: "coordinador", clave, fecha: hoy() }, { onConflict: "rol" })
+      .select();
+    if (error) {
+      setMensaje(`Error al asignar clave: ${error.message}`);
+      return;
+    }
+    if (!data || data.length === 0) {
+      setMensaje("No se pudo asignar: falta permiso en Supabase para la tabla claves_dia.");
+      return;
+    }
+    setMensaje("Clave de hoy asignada al coordinador.");
+    setClaveCoordInput("");
     cargarDatos();
   };
 
@@ -785,16 +839,77 @@ export default function AdminPage() {
                   )}
                 </div>
               ) : (
-                <button
-                  key={b.id}
-                  onClick={() => iniciarEdicionBus(b)}
-                  className="w-full flex justify-between px-3 py-2 bg-cream rounded-lg text-sm hover:bg-forest/5 transition"
-                >
-                  <span className="text-forest">{b.nombre}</span>
-                  <span className="text-forest/50">{b.capacidad_total} puestos · editar</span>
-                </button>
+                <div key={b.id} className="px-3 py-2 bg-cream rounded-lg text-sm space-y-2">
+                  <button onClick={() => iniciarEdicionBus(b)} className="w-full flex justify-between text-left">
+                    <span className="text-forest hover:underline">{b.nombre}</span>
+                    <span className="text-forest/50">{b.capacidad_total} puestos · editar</span>
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                        b.clave_fecha === hoy() ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-forest/40"
+                      }`}
+                    >
+                      {b.clave_fecha === hoy() ? `Clave hoy: ${b.clave_actual}` : "Sin clave para hoy"}
+                    </span>
+                    <input
+                      value={claveBusInput[b.id] ?? ""}
+                      onChange={(e) => setClaveBusInput((prev) => ({ ...prev, [b.id]: e.target.value }))}
+                      placeholder="Nueva clave"
+                      className="flex-1 min-w-0 text-xs border border-forest/15 rounded-lg px-2 py-1"
+                    />
+                    <button
+                      onClick={() => setClaveBusInput((prev) => ({ ...prev, [b.id]: generarClaveAleatoria() }))}
+                      title="Generar clave aleatoria"
+                      className="shrink-0 text-xs px-2 py-1 rounded-lg border border-forest/20 text-forest hover:bg-forest/5 transition"
+                    >
+                      🎲
+                    </button>
+                    <button
+                      onClick={() => asignarClaveBus(b.id)}
+                      className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-lg bg-forest text-white hover:bg-forest-dark transition"
+                    >
+                      Asignar
+                    </button>
+                  </div>
+                </div>
               )
             )}
+          </div>
+        </section>
+
+        <section className="bg-paper border border-forest/10 rounded-2xl p-5 mt-6">
+          <h2 className="font-display text-lg text-forest mb-1">Clave del coordinador (hoy)</h2>
+          <p className="text-xs text-forest/50 mb-3">
+            Al día siguiente hay que asignar una clave nueva — la de ayer deja de servir sola.
+          </p>
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                claveCoordDia.fecha === hoy() ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-forest/40"
+              }`}
+            >
+              {claveCoordDia.fecha === hoy() ? `Clave hoy: ${claveCoordDia.clave}` : "Sin clave para hoy"}
+            </span>
+            <input
+              value={claveCoordInput}
+              onChange={(e) => setClaveCoordInput(e.target.value)}
+              placeholder="Nueva clave"
+              className="flex-1 min-w-0 text-xs border border-forest/15 rounded-lg px-2 py-1"
+            />
+            <button
+              onClick={() => setClaveCoordInput(generarClaveAleatoria())}
+              title="Generar clave aleatoria"
+              className="shrink-0 text-xs px-2 py-1 rounded-lg border border-forest/20 text-forest hover:bg-forest/5 transition"
+            >
+              🎲
+            </button>
+            <button
+              onClick={asignarClaveCoordinador}
+              className="shrink-0 text-xs font-medium px-2.5 py-1 rounded-lg bg-forest text-white hover:bg-forest-dark transition"
+            >
+              Asignar
+            </button>
           </div>
         </section>
       </div>
