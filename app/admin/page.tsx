@@ -48,8 +48,10 @@ export default function AdminPage() {
   // Arrastrar para reordenar (como una playlist): "base" es la lista al
   // iniciar el arrastre, "orden" es la lista recalculada en vivo mientras se
   // mueve el dedo. Al soltar, se renumera 1..N y se guarda en Supabase.
+  // Solo se arrastra el orden de bajada (orden_vuelta): es la lista más
+  // completa, y el orden de subida se recalcula solo como su espejo (ver
+  // sincronizarSubidaDesdeBajada).
   const [arrastre, setArrastre] = useState<{
-    campo: "orden" | "orden_vuelta";
     pointerId: number;
     itemId: string;
     startY: number;
@@ -180,13 +182,62 @@ export default function AdminPage() {
     cargarDatos();
   };
 
-  const iniciarArrastre = (e: ReactPointerEvent, campo: "orden" | "orden_vuelta", id: string, rowEl: HTMLElement | null) => {
+  // La subida es, salvo excepciones, la bajada caminada al revés. Esta
+  // función recalcula "orden" (subida) a partir de "orden_vuelta" (bajada):
+  // toma las paradas que están en ambos sentidos ("ambos" = tienen orden Y
+  // orden_vuelta) y les asigna su nuevo puesto invertido, PRESERVANDO el
+  // lugar relativo de las excepciones que solo suben (Av. 3, Milla — tienen
+  // orden pero no orden_vuelta, así que no aparecen en la lista de bajada y
+  // no se tocan salvo por el corrimiento de las demás).
+  const sincronizarSubidaDesdeBajada = async (fuente?: Parada[]) => {
+    const datos = fuente ?? paradas;
+    const maestra = datos.filter((p) => p.orden_vuelta !== null).sort((a, b) => (a.orden_vuelta as number) - (b.orden_vuelta as number));
+    const ambosInvertido = [...maestra.filter((p) => p.orden !== null)].reverse();
+    const subidaActual = datos.filter((p) => p.orden !== null).sort((a, b) => (a.orden as number) - (b.orden as number));
+    const idsMaestra = new Set(maestra.map((p) => p.id));
+
+    const resultado: string[] = [];
+    let cursor = 0;
+    for (const p of subidaActual) {
+      if (idsMaestra.has(p.id)) {
+        // Estaba (o pasa a estar) en ambos sentidos: le toca el siguiente
+        // puesto de la nueva secuencia invertida de bajada.
+        if (cursor < ambosInvertido.length) {
+          resultado.push(ambosInvertido[cursor].id);
+          cursor++;
+        }
+      } else {
+        // Excepción "solo sube" (no está en la lista de bajada): se preserva tal cual.
+        resultado.push(p.id);
+      }
+    }
+    while (cursor < ambosInvertido.length) {
+      resultado.push(ambosInvertido[cursor].id);
+      cursor++;
+    }
+
+    for (let i = 0; i < resultado.length; i++) {
+      const nuevoValor = i + 1;
+      const actual = datos.find((p) => p.id === resultado[i]);
+      if (actual && actual.orden !== nuevoValor) {
+        await supabase.from("paradas").update({ orden: nuevoValor }).eq("id", resultado[i]).select();
+      }
+    }
+    const idsFinal = new Set(resultado);
+    for (const p of datos) {
+      if (p.orden !== null && !idsFinal.has(p.id)) {
+        await supabase.from("paradas").update({ orden: null }).eq("id", p.id).select();
+      }
+    }
+  };
+
+  const iniciarArrastre = (e: ReactPointerEvent, id: string, rowEl: HTMLElement | null) => {
     e.preventDefault();
-    const base = paradas.filter((p) => p[campo] !== null).sort((a, b) => (a[campo] as number) - (b[campo] as number));
+    const base = paradas.filter((p) => p.orden_vuelta !== null).sort((a, b) => (a.orden_vuelta as number) - (b.orden_vuelta as number));
     const idxOriginal = base.findIndex((p) => p.id === id);
     if (idxOriginal === -1) return;
     const rowHeight = rowEl?.getBoundingClientRect().height ?? 44;
-    setArrastre({ campo, pointerId: e.pointerId, itemId: id, startY: e.clientY, rowHeight, base, idxOriginal, orden: base });
+    setArrastre({ pointerId: e.pointerId, itemId: id, startY: e.clientY, rowHeight, base, idxOriginal, orden: base });
   };
 
   useEffect(() => {
@@ -210,8 +261,8 @@ export default function AdminPage() {
       setArrastre(null);
       for (let i = 0; i < a.orden.length; i++) {
         const nuevoValor = i + 1;
-        if (a.orden[i][a.campo] !== nuevoValor) {
-          const r = await supabase.from("paradas").update({ [a.campo]: nuevoValor }).eq("id", a.orden[i].id).select();
+        if (a.orden[i].orden_vuelta !== nuevoValor) {
+          const r = await supabase.from("paradas").update({ orden_vuelta: nuevoValor }).eq("id", a.orden[i].id).select();
           if (r.error || !r.data || r.data.length === 0) {
             setMensaje("No se pudo guardar el nuevo orden: revisa los permisos en Supabase.");
             cargarDatos();
@@ -219,6 +270,11 @@ export default function AdminPage() {
           }
         }
       }
+      const patched = paradas.map((p) => {
+        const idx = a.orden.findIndex((x) => x.id === p.id);
+        return idx !== -1 ? { ...p, orden_vuelta: idx + 1 } : p;
+      });
+      await sincronizarSubidaDesdeBajada(patched);
       cargarDatos();
     };
 
@@ -233,32 +289,56 @@ export default function AdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arrastre !== null]);
 
-
-  const quitarDeLista = async (campo: "orden" | "orden_vuelta", id: string) => {
-    const lista = paradas.filter((p) => p[campo] !== null).sort((a, b) => (a[campo] as number) - (b[campo] as number));
-    const restante = lista.filter((p) => p.id !== id);
-    const r = await supabase.from("paradas").update({ [campo]: null }).eq("id", id).select();
+  const quitarDeOrden = async (id: string) => {
+    const maestra = paradas.filter((p) => p.orden_vuelta !== null).sort((a, b) => (a.orden_vuelta as number) - (b.orden_vuelta as number));
+    const restante = maestra.filter((p) => p.id !== id);
+    const r = await supabase.from("paradas").update({ orden: null, orden_vuelta: null }).eq("id", id).select();
     if (r.error || !r.data || r.data.length === 0) {
       setMensaje("No se pudo quitar del orden: revisa los permisos en Supabase.");
       return;
     }
     for (let i = 0; i < restante.length; i++) {
       const nuevoValor = i + 1;
-      if (restante[i][campo] !== nuevoValor) {
-        await supabase.from("paradas").update({ [campo]: nuevoValor }).eq("id", restante[i].id);
+      if (restante[i].orden_vuelta !== nuevoValor) {
+        await supabase.from("paradas").update({ orden_vuelta: nuevoValor }).eq("id", restante[i].id);
       }
     }
+    const patched = paradas.map((p) => {
+      if (p.id === id) return { ...p, orden: null, orden_vuelta: null };
+      const idx = restante.findIndex((r2) => r2.id === p.id);
+      return idx !== -1 ? { ...p, orden_vuelta: idx + 1 } : p;
+    });
+    await sincronizarSubidaDesdeBajada(patched);
     cargarDatos();
   };
 
-  const agregarAlFinalDeLista = async (campo: "orden" | "orden_vuelta", id: string) => {
-    const lista = paradas.filter((p) => p[campo] !== null);
-    const siguiente = lista.length > 0 ? Math.max(...lista.map((p) => p[campo] as number)) + 1 : 1;
-    const r = await supabase.from("paradas").update({ [campo]: siguiente }).eq("id", id).select();
+  const agregarAlFinalDeOrden = async (id: string) => {
+    const maestra = paradas.filter((p) => p.orden_vuelta !== null);
+    const siguiente = maestra.length > 0 ? Math.max(...maestra.map((p) => p.orden_vuelta as number)) + 1 : 1;
+    // orden se marca con un valor temporal no nulo solo para que la sincronización
+    // la reconozca como "ambos sentidos"; sincronizarSubidaDesdeBajada la reemplaza
+    // enseguida por su puesto real invertido.
+    const r = await supabase.from("paradas").update({ orden_vuelta: siguiente, orden: 999999 }).eq("id", id).select();
     if (r.error || !r.data || r.data.length === 0) {
       setMensaje("No se pudo agregar al orden: revisa los permisos en Supabase.");
       return;
     }
+    const patched = paradas.map((p) => (p.id === id ? { ...p, orden_vuelta: siguiente, orden: 999999 } : p));
+    await sincronizarSubidaDesdeBajada(patched);
+    cargarDatos();
+  };
+
+  const alternarTambienSube = async (id: string) => {
+    const p = paradas.find((x) => x.id === id);
+    if (!p) return;
+    const nuevoValorTemporal = p.orden !== null ? null : 999999;
+    const r = await supabase.from("paradas").update({ orden: nuevoValorTemporal }).eq("id", id).select();
+    if (r.error || !r.data || r.data.length === 0) {
+      setMensaje("No se pudo cambiar: revisa los permisos en Supabase.");
+      return;
+    }
+    const patched = paradas.map((x) => (x.id === id ? { ...x, orden: nuevoValorTemporal } : x));
+    await sincronizarSubidaDesdeBajada(patched);
     cargarDatos();
   };
 
@@ -547,52 +627,70 @@ export default function AdminPage() {
           </div>
         </section>
 
-        {(["orden", "orden_vuelta"] as const).map((campo) => {
-          const enOrdenBase = paradas
-            .filter((p) => p[campo] !== null)
-            .sort((a, b) => (a[campo] as number) - (b[campo] as number));
-          const enOrden = arrastre && arrastre.campo === campo ? arrastre.orden : enOrdenBase;
-          const sinOrden = paradas.filter((p) => p[campo] === null);
-          const titulo = campo === "orden" ? "Orden de subida" : "Orden de bajada";
+        {(() => {
+          const enOrdenBase = paradas.filter((p) => p.orden_vuelta !== null).sort((a, b) => (a.orden_vuelta as number) - (b.orden_vuelta as number));
+          const enOrden = arrastre ? arrastre.orden : enOrdenBase;
+          const soloSuben = paradas.filter((p) => p.orden !== null && p.orden_vuelta === null).sort((a, b) => (a.orden as number) - (b.orden as number));
+          const sinOrden = paradas.filter((p) => p.orden === null && p.orden_vuelta === null);
           return (
-            <section key={campo} className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
-              <h2 className="font-display text-lg text-forest mb-1">{titulo} ({enOrden.length})</h2>
-              <p className="text-xs text-forest/50 mb-3">Arrastra ☰ para poner cada parada en el orden real en que se camina.</p>
-              <div className="space-y-1.5 mb-4" style={{ touchAction: arrastre?.campo === campo ? "none" : undefined }}>
-                {enOrden.length === 0 && <p className="text-xs text-forest/40">Ninguna parada tiene orden de {campo === "orden" ? "subida" : "bajada"} todavía.</p>}
-                {enOrden.map((p, i) => (
-                  <div
-                    key={p.id}
-                    data-row
-                    className={`flex items-center gap-2 px-3 py-1.5 bg-cream rounded-lg text-sm ${arrastre?.itemId === p.id ? "shadow-md ring-2 ring-forest/30" : ""}`}
-                  >
-                    <button
-                      onPointerDown={(e) => iniciarArrastre(e, campo, p.id, e.currentTarget.closest("[data-row]") as HTMLElement)}
-                      style={{ touchAction: "none" }}
-                      className="shrink-0 w-7 h-7 rounded-full text-forest/50 cursor-grab active:cursor-grabbing select-none"
+            <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
+              <h2 className="font-display text-lg text-forest mb-1">Orden de las paradas ({enOrden.length})</h2>
+              <p className="text-xs text-forest/50 mb-3">
+                Arrastra ☰ en el orden real en que se camina bajando (Hotel → Av. 19) — la subida se acomoda sola, al revés.
+                Usa &quot;{"↕ / ↓"}&quot; para marcar si una parada también se usa subiendo o es solo de bajada.
+              </p>
+              <div className="space-y-1.5 mb-4" style={{ touchAction: arrastre ? "none" : undefined }}>
+                {enOrden.length === 0 && <p className="text-xs text-forest/40">Ninguna parada tiene orden todavía.</p>}
+                {enOrden.map((p, i) => {
+                  const tambienSube = p.orden !== null;
+                  return (
+                    <div
+                      key={p.id}
+                      data-row
+                      className={`flex items-center gap-2 px-3 py-1.5 bg-cream rounded-lg text-sm ${arrastre?.itemId === p.id ? "shadow-md ring-2 ring-forest/30" : ""}`}
                     >
-                      ☰
-                    </button>
-                    <span className="text-forest/40 text-xs w-5 shrink-0">{i + 1}.</span>
-                    <span className="text-forest flex-1 truncate">{p.nombre}</span>
-                    <button
-                      onClick={() => quitarDeLista(campo, p.id)}
-                      className="shrink-0 w-7 h-7 rounded-full border border-terracotta/40 text-terracotta hover:bg-terracotta/10 transition"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
+                      <button
+                        onPointerDown={(e) => iniciarArrastre(e, p.id, e.currentTarget.closest("[data-row]") as HTMLElement)}
+                        style={{ touchAction: "none" }}
+                        className="shrink-0 w-7 h-7 rounded-full text-forest/50 cursor-grab active:cursor-grabbing select-none"
+                      >
+                        ☰
+                      </button>
+                      <span className="text-forest/40 text-xs w-5 shrink-0">{i + 1}.</span>
+                      <span className="text-forest flex-1 truncate">{p.nombre}</span>
+                      <button
+                        onClick={() => alternarTambienSube(p.id)}
+                        title={tambienSube ? "También sube (tocar para dejarla solo de bajada)" : "Solo baja (tocar para que también suba)"}
+                        className={`shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-full border transition ${
+                          tambienSube ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-forest/50"
+                        }`}
+                      >
+                        {tambienSube ? "↕ sube y baja" : "↓ solo baja"}
+                      </button>
+                      <button
+                        onClick={() => quitarDeOrden(p.id)}
+                        className="shrink-0 w-7 h-7 rounded-full border border-terracotta/40 text-terracotta hover:bg-terracotta/10 transition"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
+              {soloSuben.length > 0 && (
+                <p className="text-xs text-forest/40 mb-4">
+                  Excepciones que solo suben (no aparecen en esta lista, no se tocan aquí): {soloSuben.map((p) => p.nombre).join(", ")}.
+                </p>
+              )}
               {sinOrden.length > 0 && (
                 <>
-                  <p className="text-xs text-forest/50 mb-2">Sin orden de {campo === "orden" ? "subida" : "bajada"} — agrégalas al final y luego arrástralas con ☰ a su lugar:</p>
+                  <p className="text-xs text-forest/50 mb-2">Sin orden — agrégalas al final y luego arrástralas con ☰ a su lugar:</p>
                   <div className="space-y-1.5">
                     {sinOrden.map((p) => (
                       <div key={p.id} className="flex items-center justify-between gap-2 px-3 py-1.5 bg-cream/60 rounded-lg text-sm">
                         <span className="text-forest/70 truncate">{p.nombre}</span>
                         <button
-                          onClick={() => agregarAlFinalDeLista(campo, p.id)}
+                          onClick={() => agregarAlFinalDeOrden(p.id)}
                           className="shrink-0 text-xs font-medium px-3 py-1 rounded-full border border-forest/20 text-forest hover:bg-forest/5 transition"
                         >
                           + Agregar
@@ -604,7 +702,7 @@ export default function AdminPage() {
               )}
             </section>
           );
-        })}
+        })()}
 
         <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
           <h2 className="font-display text-lg text-forest mb-3">Agregar unidad</h2>
