@@ -34,12 +34,12 @@ export default function AdminPage() {
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [fijandoId, setFijandoId] = useState<string | null>(null);
 
-  const [nuevaParada, setNuevaParada] = useState({ nombre: "", orden: "", orden_vuelta: "", lat: "", lng: "" });
+  const [nuevaParada, setNuevaParada] = useState({ nombre: "", lat: "", lng: "" });
   const [agregandoParada, setAgregandoParada] = useState(false);
   const [nuevoBus, setNuevoBus] = useState({ nombre: "", capacidad: "17" });
 
   const [editandoParadaId, setEditandoParadaId] = useState<string | null>(null);
-  const [editParada, setEditParada] = useState({ nombre: "", orden: "", orden_vuelta: "", lat: "", lng: "" });
+  const [editParada, setEditParada] = useState({ nombre: "", lat: "", lng: "" });
   const [confirmandoEliminarId, setConfirmandoEliminarId] = useState<string | null>(null);
   const [editandoBusId, setEditandoBusId] = useState<string | null>(null);
   const [editBus, setEditBus] = useState({ nombre: "", capacidad: "" });
@@ -110,8 +110,6 @@ export default function AdminPage() {
     setConfirmandoEliminarId(null);
     setEditParada({
       nombre: p.nombre,
-      orden: p.orden?.toString() ?? "",
-      orden_vuelta: p.orden_vuelta?.toString() ?? "",
       lat: p.latitud?.toString() ?? "",
       lng: p.longitud?.toString() ?? "",
     });
@@ -126,8 +124,6 @@ export default function AdminPage() {
       .from("paradas")
       .update({
         nombre: editParada.nombre.trim(),
-        orden: editParada.orden ? Number(editParada.orden) : null,
-        orden_vuelta: editParada.orden_vuelta ? Number(editParada.orden_vuelta) : null,
         latitud: editParada.lat ? Number(editParada.lat) : null,
         longitud: editParada.lng ? Number(editParada.lng) : null,
       })
@@ -162,6 +158,58 @@ export default function AdminPage() {
     setMensaje("Parada eliminada.");
     setConfirmandoEliminarId(null);
     setEditandoParadaId(null);
+    cargarDatos();
+  };
+
+  const moverEnLista = async (campo: "orden" | "orden_vuelta", id: string, direccion: -1 | 1) => {
+    // Reordena por posición y renumera 1..N en vez de intercambiar valores:
+    // así también corrige de una vez paradas con el mismo número repetido
+    // (un intercambio de valores no mueve nada si ambas ya comparten número).
+    const lista = paradas
+      .filter((p) => p[campo] !== null)
+      .sort((a, b) => (a[campo] as number) - (b[campo] as number));
+    const idx = lista.findIndex((p) => p.id === id);
+    const otroIdx = idx + direccion;
+    if (idx === -1 || otroIdx < 0 || otroIdx >= lista.length) return;
+    [lista[idx], lista[otroIdx]] = [lista[otroIdx], lista[idx]];
+    for (let i = 0; i < lista.length; i++) {
+      const nuevoValor = i + 1;
+      if (lista[i][campo] !== nuevoValor) {
+        const r = await supabase.from("paradas").update({ [campo]: nuevoValor }).eq("id", lista[i].id).select();
+        if (r.error || !r.data || r.data.length === 0) {
+          setMensaje("No se pudo mover: revisa los permisos en Supabase.");
+          return;
+        }
+      }
+    }
+    cargarDatos();
+  };
+
+  const quitarDeLista = async (campo: "orden" | "orden_vuelta", id: string) => {
+    const lista = paradas.filter((p) => p[campo] !== null).sort((a, b) => (a[campo] as number) - (b[campo] as number));
+    const restante = lista.filter((p) => p.id !== id);
+    const r = await supabase.from("paradas").update({ [campo]: null }).eq("id", id).select();
+    if (r.error || !r.data || r.data.length === 0) {
+      setMensaje("No se pudo quitar del orden: revisa los permisos en Supabase.");
+      return;
+    }
+    for (let i = 0; i < restante.length; i++) {
+      const nuevoValor = i + 1;
+      if (restante[i][campo] !== nuevoValor) {
+        await supabase.from("paradas").update({ [campo]: nuevoValor }).eq("id", restante[i].id);
+      }
+    }
+    cargarDatos();
+  };
+
+  const agregarAlFinalDeLista = async (campo: "orden" | "orden_vuelta", id: string) => {
+    const lista = paradas.filter((p) => p[campo] !== null);
+    const siguiente = lista.length > 0 ? Math.max(...lista.map((p) => p[campo] as number)) + 1 : 1;
+    const r = await supabase.from("paradas").update({ [campo]: siguiente }).eq("id", id).select();
+    if (r.error || !r.data || r.data.length === 0) {
+      setMensaje("No se pudo agregar al orden: revisa los permisos en Supabase.");
+      return;
+    }
     cargarDatos();
   };
 
@@ -232,8 +280,8 @@ export default function AdminPage() {
 
     const { error } = await supabase.from("paradas").insert({
       nombre: nuevaParada.nombre.trim(),
-      orden: nuevaParada.orden ? Number(nuevaParada.orden) : null,
-      orden_vuelta: nuevaParada.orden_vuelta ? Number(nuevaParada.orden_vuelta) : null,
+      orden: null,
+      orden_vuelta: null,
       latitud: lat,
       longitud: lng,
     });
@@ -243,13 +291,14 @@ export default function AdminPage() {
       return;
     }
     setMensaje(
-      origenUbicacion === "manual"
+      (origenUbicacion === "manual"
         ? `Parada "${nuevaParada.nombre}" agregada con la coordenada que escribiste.`
         : origenUbicacion === "gps"
         ? `Parada "${nuevaParada.nombre}" agregada con tu ubicación actual.`
-        : `Parada "${nuevaParada.nombre}" agregada sin ubicación (no se pudo obtener tu GPS) — usa "Fijar aquí" o escribe la coordenada manual después.`
+        : `Parada "${nuevaParada.nombre}" agregada sin ubicación (no se pudo obtener tu GPS) — usa "Fijar aquí" o escribe la coordenada manual después.`) +
+        " Agrégala al orden de subida/bajada abajo."
     );
-    setNuevaParada({ nombre: "", orden: "", orden_vuelta: "", lat: "", lng: "" });
+    setNuevaParada({ nombre: "", lat: "", lng: "" });
     cargarDatos();
   };
 
@@ -319,26 +368,12 @@ export default function AdminPage() {
             Párate en el sitio físico antes de agregarla — se captura tu ubicación GPS automáticamente.
             Si no hay buena señal, escribe la coordenada manual abajo (opcional).
           </p>
-          <div className="grid grid-cols-3 gap-2 mb-2">
+          <div className="mb-2">
             <input
               value={nuevaParada.nombre}
               onChange={(e) => setNuevaParada({ ...nuevaParada, nombre: e.target.value })}
               placeholder="Nombre"
-              className="col-span-3 sm:col-span-1 text-sm border border-forest/15 rounded-lg px-3 py-2"
-            />
-            <input
-              value={nuevaParada.orden}
-              onChange={(e) => setNuevaParada({ ...nuevaParada, orden: e.target.value })}
-              placeholder="Orden subida"
-              type="number"
-              className="text-sm border border-forest/15 rounded-lg px-3 py-2"
-            />
-            <input
-              value={nuevaParada.orden_vuelta}
-              onChange={(e) => setNuevaParada({ ...nuevaParada, orden_vuelta: e.target.value })}
-              placeholder="Orden bajada"
-              type="number"
-              className="text-sm border border-forest/15 rounded-lg px-3 py-2"
+              className="w-full text-sm border border-forest/15 rounded-lg px-3 py-2"
             />
           </div>
           <div className="grid grid-cols-2 gap-2 mb-3">
@@ -380,22 +415,6 @@ export default function AdminPage() {
                     placeholder="Nombre"
                     className="w-full text-sm border border-forest/15 rounded-lg px-3 py-1.5"
                   />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      value={editParada.orden}
-                      onChange={(e) => setEditParada({ ...editParada, orden: e.target.value })}
-                      placeholder="Orden subida"
-                      type="number"
-                      className="text-sm border border-forest/15 rounded-lg px-3 py-1.5"
-                    />
-                    <input
-                      value={editParada.orden_vuelta}
-                      onChange={(e) => setEditParada({ ...editParada, orden_vuelta: e.target.value })}
-                      placeholder="Orden bajada"
-                      type="number"
-                      className="text-sm border border-forest/15 rounded-lg px-3 py-1.5"
-                    />
-                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       value={editParada.lat}
@@ -461,6 +480,67 @@ export default function AdminPage() {
             )}
           </div>
         </section>
+
+        {(["orden", "orden_vuelta"] as const).map((campo) => {
+          const enOrden = paradas
+            .filter((p) => p[campo] !== null)
+            .sort((a, b) => (a[campo] as number) - (b[campo] as number));
+          const sinOrden = paradas.filter((p) => p[campo] === null);
+          const titulo = campo === "orden" ? "Orden de subida" : "Orden de bajada";
+          return (
+            <section key={campo} className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
+              <h2 className="font-display text-lg text-forest mb-1">{titulo} ({enOrden.length})</h2>
+              <p className="text-xs text-forest/50 mb-3">Usa las flechas para poner las paradas en el orden real en que se caminan.</p>
+              <div className="space-y-1.5 mb-4">
+                {enOrden.length === 0 && <p className="text-xs text-forest/40">Ninguna parada tiene orden de {campo === "orden" ? "subida" : "bajada"} todavía.</p>}
+                {enOrden.map((p, i) => (
+                  <div key={p.id} className="flex items-center gap-2 px-3 py-1.5 bg-cream rounded-lg text-sm">
+                    <span className="text-forest/40 text-xs w-5 shrink-0">{i + 1}.</span>
+                    <span className="text-forest flex-1 truncate">{p.nombre}</span>
+                    <button
+                      onClick={() => moverEnLista(campo, p.id, -1)}
+                      disabled={i === 0}
+                      className="shrink-0 w-7 h-7 rounded-full border border-forest/20 text-forest disabled:opacity-25 hover:bg-forest/5 transition"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      onClick={() => moverEnLista(campo, p.id, 1)}
+                      disabled={i === enOrden.length - 1}
+                      className="shrink-0 w-7 h-7 rounded-full border border-forest/20 text-forest disabled:opacity-25 hover:bg-forest/5 transition"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      onClick={() => quitarDeLista(campo, p.id)}
+                      className="shrink-0 w-7 h-7 rounded-full border border-terracotta/40 text-terracotta hover:bg-terracotta/10 transition"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+              {sinOrden.length > 0 && (
+                <>
+                  <p className="text-xs text-forest/50 mb-2">Sin orden de {campo === "orden" ? "subida" : "bajada"} — agrégalas al final y luego súbelas con las flechas:</p>
+                  <div className="space-y-1.5">
+                    {sinOrden.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between gap-2 px-3 py-1.5 bg-cream/60 rounded-lg text-sm">
+                        <span className="text-forest/70 truncate">{p.nombre}</span>
+                        <button
+                          onClick={() => agregarAlFinalDeLista(campo, p.id)}
+                          className="shrink-0 text-xs font-medium px-3 py-1 rounded-full border border-forest/20 text-forest hover:bg-forest/5 transition"
+                        >
+                          + Agregar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </section>
+          );
+        })}
 
         <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
           <h2 className="font-display text-lg text-forest mb-3">Agregar unidad</h2>

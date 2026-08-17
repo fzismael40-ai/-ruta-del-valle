@@ -18,6 +18,7 @@ type Bus = {
   necesita_refuerzo: boolean;
   sentido: "ida" | "vuelta";
   refuerzo_desde: string | null;
+  activo: boolean;
 };
 
 const CLAVE_PILOTO = "valle2026";
@@ -206,8 +207,15 @@ export default function Home() {
 
   const paradasIda = paradas.filter((p) => p.orden !== null).sort((a, b) => a.orden! - b.orden!);
   const paradasVuelta = paradas.filter((p) => p.orden_vuelta !== null).sort((a, b) => a.orden_vuelta! - b.orden_vuelta!);
+  // Los buses "fuera de línea" (el piloto salió de turno) se ocultan de
+  // pasajero/coordinador/mapa, pero el piloto los sigue viendo en su selector
+  // para poder reincorporarse.
+  // "!== false" en vez de solo "b.activo": si la columna todavía no existe en
+  // Supabase (antes de correr la migración), el campo llega undefined y no
+  // debe ocultar todos los buses de golpe.
+  const busesActivos = buses.filter((b) => b.activo !== false);
 
-  const idBusEfectivo = busSeleccionadoId ?? buses[0]?.id ?? null;
+  const idBusEfectivo = busSeleccionadoId ?? busesActivos[0]?.id ?? buses[0]?.id ?? null;
   const miBus = buses.find((b) => b.id === idBusEfectivo) ?? buses[0];
   const listaActual = miBus?.sentido === "vuelta" ? paradasVuelta : paradasIda;
   const totalParadas = listaActual.length;
@@ -366,6 +374,11 @@ export default function Home() {
     await supabase.from("buses").update({ necesita_refuerzo: false, refuerzo_desde: null }).eq("id", busId);
   };
 
+  const alternarActivo = async () => {
+    if (!miBus) return;
+    await supabase.from("buses").update({ activo: !miBus.activo, updated_at: new Date().toISOString() }).eq("id", miBus.id);
+  };
+
   const textoBotonPiloto = esFinalDeLista
     ? esVuelta
       ? "Iniciar nueva ida (vía Milla) →"
@@ -387,7 +400,7 @@ export default function Home() {
     .filter((p) => p.latitud !== null && p.longitud !== null)
     .map((p) => ({ id: p.id, nombre: p.nombre, lat: p.latitud as number, lng: p.longitud as number }));
 
-  const busesEnMapa = buses
+  const busesEnMapa = busesActivos
     .map((b) => {
       // Si el piloto tiene GPS activo, usamos su ubicación real; si no,
       // caemos a la posición aproximada de la parada donde está reportado.
@@ -500,7 +513,7 @@ export default function Home() {
               <p className="text-xs text-forest/50 mt-1">paradas en la ruta</p>
             </div>
             <div className="bg-paper border border-forest/10 rounded-2xl px-3 py-4 shadow-sm">
-              <p className="font-display text-2xl text-forest">{buses.length || "—"}</p>
+              <p className="font-display text-2xl text-forest">{busesActivos.length || "—"}</p>
               <p className="text-xs text-forest/50 mt-1">buses activos</p>
             </div>
             <div className="bg-paper border border-teal/20 rounded-2xl px-3 py-4 shadow-sm">
@@ -586,13 +599,13 @@ export default function Home() {
             <div className="phone p-4">
 
               <div className={`view ${role==="pasajero" ? "active" : ""}`}>
-                {buses.length > 0 && (
+                {busesActivos.length > 0 && (
                   <select
                     value={miBus?.id ?? ""}
                     onChange={(e) => setBusSeleccionadoId(e.target.value)}
                     className="w-full mb-3 text-xs font-medium text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
                   >
-                    {buses.map((b) => (
+                    {busesActivos.map((b) => (
                       <option key={b.id} value={b.id}>{b.nombre}</option>
                     ))}
                   </select>
@@ -600,7 +613,9 @@ export default function Home() {
                 <p className="text-xs text-forest/50 mb-2">
                   Parada: {miBus?.parada_actual ?? "..."} · {miBus?.sentido === "vuelta" ? "Bajando hacia Av. 19" : "Subiendo hacia el Valle"}
                 </p>
-                {miBus ? (
+                {busesActivos.length === 0 ? (
+                  <p className="text-sm text-forest/50">Ninguna unidad en línea ahora mismo.</p>
+                ) : miBus ? (
                   <>
                     <p className="font-display text-xl text-forest mb-1">{miBus.nombre}: {miBus.ocupacion_actual}/{miBus.capacidad_total} cupos</p>
                     <div className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-4 ${miBus.necesita_refuerzo ? "bg-terracotta/15" : "bg-teal/15"}`}>
@@ -670,6 +685,21 @@ export default function Home() {
                     <button onClick={avanzarParada} className="w-full py-2.5 rounded-full bg-terracotta text-white text-sm font-medium">
                       {textoBotonPiloto}
                     </button>
+                    <button
+                      onClick={alternarActivo}
+                      className={`w-full mt-2 py-2 rounded-full border text-xs font-medium transition ${
+                        miBus?.activo === false
+                          ? "border-teal text-teal-dark hover:bg-teal/10"
+                          : "border-forest/20 text-forest/60 hover:bg-forest/5"
+                      }`}
+                    >
+                      {miBus?.activo === false ? "↩ Reincorporarme a la línea" : "Salir de la línea (fin de turno)"}
+                    </button>
+                    {miBus?.activo === false && (
+                      <p className="text-xs text-terracotta text-center mt-2">
+                        Estás fuera de línea: pasajeros y coordinador no ven este bus.
+                      </p>
+                    )}
                   </>
                 )}
               </div>
@@ -705,7 +735,7 @@ export default function Home() {
                   </div>
                 )}
                 <p className="text-xs text-forest/50 mb-3">↑ Subiendo hacia El Valle</p>
-                {buses.filter((b) => b.sentido === "ida").map((bus) => {
+                {busesActivos.filter((b) => b.sentido === "ida").map((bus) => {
                   const pct = Math.round((bus.ocupacion_actual / bus.capacidad_total) * 100);
                   return (
                     <div key={bus.id} className="flex justify-between items-center px-3 py-2.5 bg-cream rounded-lg mb-2">
@@ -716,12 +746,12 @@ export default function Home() {
                     </div>
                   );
                 })}
-                {buses.filter((b) => b.sentido === "ida").length === 0 && (
+                {busesActivos.filter((b) => b.sentido === "ida").length === 0 && (
                   <p className="text-xs text-forest/40 mb-3">Ningún bus subiendo ahora</p>
                 )}
 
                 <p className="text-xs text-forest/50 mb-3 mt-4">↓ Bajando hacia Av. 19</p>
-                {buses.filter((b) => b.sentido === "vuelta").map((bus) => {
+                {busesActivos.filter((b) => b.sentido === "vuelta").map((bus) => {
                   const pct = Math.round((bus.ocupacion_actual / bus.capacidad_total) * 100);
                   return (
                     <div key={bus.id} className="flex justify-between items-center px-3 py-2.5 bg-cream rounded-lg mb-2">
@@ -732,11 +762,11 @@ export default function Home() {
                     </div>
                   );
                 })}
-                {buses.filter((b) => b.sentido === "vuelta").length === 0 && (
+                {busesActivos.filter((b) => b.sentido === "vuelta").length === 0 && (
                   <p className="text-xs text-forest/40 mb-3">Ningún bus bajando ahora</p>
                 )}
 
-                {buses.filter((b) => b.necesita_refuerzo).map((bus) => {
+                {busesActivos.filter((b) => b.necesita_refuerzo).map((bus) => {
                   const mins = minutosEsperando(bus.refuerzo_desde);
                   const urgente = mins >= 25;
                   const medio = mins >= 15 && mins < 25;
