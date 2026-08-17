@@ -393,6 +393,28 @@ export default function AdminPage() {
     }
   };
 
+  // Para las excepciones que solo suben (sin orden_vuelta, como Av. 3 o
+  // Milla) no hay una posición de bajada contra la cual arrastrarlas, así
+  // que se mueven directo dentro de la secuencia de subida con flechas.
+  const moverSoloSubida = async (id: string, direccion: -1 | 1) => {
+    const lista = paradas.filter((p) => p.orden !== null).sort((a, b) => (a.orden as number) - (b.orden as number));
+    const idx = lista.findIndex((p) => p.id === id);
+    const otroIdx = idx + direccion;
+    if (idx === -1 || otroIdx < 0 || otroIdx >= lista.length) return;
+    [lista[idx], lista[otroIdx]] = [lista[otroIdx], lista[idx]];
+    for (let i = 0; i < lista.length; i++) {
+      const nuevoValor = i + 1;
+      if (lista[i].orden !== nuevoValor) {
+        const r = await supabase.from("paradas").update({ orden: nuevoValor }).eq("id", lista[i].id).select();
+        if (r.error || !r.data || r.data.length === 0) {
+          setMensaje("No se pudo mover: revisa los permisos en Supabase.");
+          return;
+        }
+      }
+    }
+    cargarDatos();
+  };
+
   const iniciarEdicionBus = (b: Bus) => {
     setEditandoBusId(b.id);
     setConfirmandoEliminarBusId(null);
@@ -741,6 +763,23 @@ export default function AdminPage() {
                         </button>
                         <span className="text-forest/40 text-xs w-5 shrink-0">{i + 1}.</span>
                       </>
+                    ) : p.orden !== null ? (
+                      <span className="flex shrink-0">
+                        <button
+                          onClick={() => moverSoloSubida(p.id, -1)}
+                          title="Subir en el orden de subida"
+                          className="w-5 h-7 text-forest/50 hover:text-forest transition"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          onClick={() => moverSoloSubida(p.id, 1)}
+                          title="Bajar en el orden de subida"
+                          className="w-5 h-7 text-forest/50 hover:text-forest transition"
+                        >
+                          ▼
+                        </button>
+                      </span>
                     ) : (
                       <span className="w-7 shrink-0" />
                     )}
