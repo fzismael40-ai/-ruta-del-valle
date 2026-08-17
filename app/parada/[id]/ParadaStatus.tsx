@@ -135,7 +135,7 @@ export default function ParadaStatus({ id }: { id: string }) {
       <main className="min-h-screen bg-cream flex items-center justify-center px-6 text-center">
         <div>
           <p className="font-display text-2xl text-forest mb-3">Parada no encontrada</p>
-          <Link href="/" className="text-sm text-terracotta hover:underline">Ver todas las rutas</Link>
+          <Link href="/" className="text-sm text-terracotta hover:underline">Volver al inicio</Link>
         </div>
       </main>
     );
@@ -160,7 +160,7 @@ export default function ParadaStatus({ id }: { id: string }) {
   return (
     <main className="min-h-screen bg-cream px-6 py-10">
       <div className="max-w-sm mx-auto">
-        <Link href={rutaSlug ? `/r/${rutaSlug}` : "/"} className="text-xs text-forest/50 hover:text-forest transition">&larr; Volver</Link>
+        <Link href={!rutaSlug || rutaSlug === "ruta-del-valle" ? "/" : `/r/${rutaSlug}`} className="text-xs text-forest/50 hover:text-forest transition">&larr; Volver</Link>
 
         <p className="text-terracotta text-xs font-semibold tracking-widest uppercase mt-4 mb-2">Estado de esta parada</p>
         <h1 className="font-display text-3xl text-forest mb-8">{parada.nombre}</h1>

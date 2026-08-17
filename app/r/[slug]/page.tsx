@@ -1,4 +1,4 @@
-import RutaApp from "./RutaApp";
+import RutaApp from "../../RutaApp";
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

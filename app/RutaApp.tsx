@@ -3,10 +3,10 @@ import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../supabaseClient";
-import { rutaIdaCarretera, rutaVueltaCarretera } from "../../rutaCarreteras";
+import { supabase } from "./supabaseClient";
+import { rutaIdaCarretera, rutaVueltaCarretera } from "./rutaCarreteras";
 
-const MapaRuta = dynamic(() => import("../../MapaRuta"), { ssr: false });
+const MapaRuta = dynamic(() => import("./MapaRuta"), { ssr: false });
 
 type RutaInfo = {
   id: string;
@@ -116,12 +116,29 @@ export default function RutaApp({ slug }: { slug: string }) {
   // primer render, cuando ya se puede consultar display-mode con seguridad.
   const [esAppInstalada, setEsAppInstalada] = useState(false);
 
+  // rutaId=null puede significar dos cosas: todavía no se resolvió (ruta===null,
+  // los efectos de abajo esperan) o ya se intentó y no hay que filtrar por ruta
+  // (el caso de compatibilidad de Ruta del Valle mientras no se corra la
+  // migración de "rutas" — ver más abajo). "resuelta" distingue esos dos casos.
+  const resuelta = ruta !== null;
   const rutaId = ruta && ruta !== "not-found" ? ruta.id : null;
+  const nombreRuta = ruta && ruta !== "not-found" ? ruta.nombre : "Ruta del Valle";
 
   useEffect(() => {
     const fetchRuta = async () => {
-      const { data } = await supabase.from("rutas").select("id,nombre,slug,descripcion").eq("slug", slug).maybeSingle();
-      setRuta(data ?? "not-found");
+      const { data, error } = await supabase.from("rutas").select("id,nombre,slug,descripcion").eq("slug", slug).maybeSingle();
+      if (data) {
+        setRuta(data);
+        return;
+      }
+      if (error && slug === "ruta-del-valle") {
+        // La tabla "rutas" todavía no existe (falta correr la migración):
+        // Ruta del Valle sigue funcionando exactamente igual que siempre,
+        // sin filtrar nada por ruta_id (ver "resuelta"/"rutaId" arriba).
+        setRuta("not-found");
+        return;
+      }
+      setRuta("not-found");
     };
     fetchRuta();
   }, [slug]);
@@ -143,13 +160,15 @@ export default function RutaApp({ slug }: { slug: string }) {
   }, [slug]);
 
   useEffect(() => {
-    if (!rutaId) return;
+    if (!resuelta) return;
     const fetchClaveCoordinador = async () => {
-      const { data } = await supabase.from("claves_dia").select("*").eq("ruta_id", rutaId).eq("rol", "coordinador").maybeSingle();
+      let q = supabase.from("claves_dia").select("*").eq("rol", "coordinador");
+      if (rutaId) q = q.eq("ruta_id", rutaId);
+      const { data } = await q.maybeSingle();
       setClaveDiaCoordinador({ clave: data?.clave ?? null, fecha: data?.fecha ?? null, fija: data?.fija ?? false });
     };
     fetchClaveCoordinador();
-  }, [rutaId]);
+  }, [resuelta, rutaId]);
 
   useEffect(() => {
     const alPoderInstalar = (e: Event) => {
@@ -216,13 +235,15 @@ export default function RutaApp({ slug }: { slug: string }) {
   }, []);
 
   useEffect(() => {
-    if (!rutaId) return;
+    if (!resuelta) return;
     const fetchParadas = async () => {
-      const { data } = await supabase.from("paradas").select("*").eq("ruta_id", rutaId);
+      let q = supabase.from("paradas").select("*");
+      if (rutaId) q = q.eq("ruta_id", rutaId);
+      const { data } = await q;
       if (data) setParadas(data as Parada[]);
     };
     fetchParadas();
-  }, [rutaId]);
+  }, [resuelta, rutaId]);
 
   useEffect(() => {
     paradasRef.current = paradas;
@@ -280,9 +301,11 @@ export default function RutaApp({ slug }: { slug: string }) {
   }, []);
 
   useEffect(() => {
-    if (!rutaId) return;
+    if (!resuelta) return;
     const fetchBuses = async () => {
-      const { data } = await supabase.from("buses").select("*").eq("ruta_id", rutaId).order("nombre");
+      let q = supabase.from("buses").select("*");
+      if (rutaId) q = q.eq("ruta_id", rutaId);
+      const { data } = await q.order("nombre");
       if (!data) return;
       const nuevos = data as Bus[];
       const prevMap = prevBusesRef.current;
@@ -335,21 +358,29 @@ export default function RutaApp({ slug }: { slug: string }) {
     fetchBuses();
 
     const channel = supabase
-      .channel(`buses-realtime-${rutaId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "buses", filter: `ruta_id=eq.${rutaId}` }, () => fetchBuses())
+      .channel(`buses-realtime-${rutaId ?? "legacy"}`)
+      .on(
+        "postgres_changes",
+        rutaId
+          ? { event: "*", schema: "public", table: "buses", filter: `ruta_id=eq.${rutaId}` }
+          : { event: "*", schema: "public", table: "buses" },
+        () => fetchBuses()
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rutaId]);
+  }, [resuelta, rutaId]);
 
   useEffect(() => {
-    if (!rutaId) return;
+    if (!resuelta) return;
     const fetchDemanda = async () => {
       const desde = new Date(Date.now() - 30 * 60000).toISOString();
-      const { data, error } = await supabase.from("checkins").select("sentido").eq("ruta_id", rutaId).gte("created_at", desde);
+      let q = supabase.from("checkins").select("sentido").gte("created_at", desde);
+      if (rutaId) q = q.eq("ruta_id", rutaId);
+      const { data, error } = await q;
       if (error) return; // la tabla todavía no existe o no hay permiso: se oculta el panel
       setDemanda({
         ida: data.filter((c) => c.sentido === "ida").length,
@@ -359,14 +390,20 @@ export default function RutaApp({ slug }: { slug: string }) {
     fetchDemanda();
 
     const channel = supabase
-      .channel(`checkins-realtime-${rutaId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "checkins", filter: `ruta_id=eq.${rutaId}` }, () => fetchDemanda())
+      .channel(`checkins-realtime-${rutaId ?? "legacy"}`)
+      .on(
+        "postgres_changes",
+        rutaId
+          ? { event: "INSERT", schema: "public", table: "checkins", filter: `ruta_id=eq.${rutaId}` }
+          : { event: "INSERT", schema: "public", table: "checkins" },
+        () => fetchDemanda()
+      )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [rutaId]);
+  }, [resuelta, rutaId]);
 
   const paradasIda = paradas.filter((p) => p.orden !== null).sort((a, b) => a.orden! - b.orden!);
   const paradasVuelta = paradas.filter((p) => p.orden_vuelta !== null).sort((a, b) => a.orden_vuelta! - b.orden_vuelta!);
@@ -657,18 +694,18 @@ export default function RutaApp({ slug }: { slug: string }) {
     })
     .filter((b): b is NonNullable<typeof b> => b !== null);
 
-  if (ruta === "not-found") {
+  if (ruta === "not-found" && slug !== "ruta-del-valle") {
     return (
       <main className="min-h-screen bg-cream flex items-center justify-center px-6 text-center">
         <div>
           <p className="font-display text-2xl text-forest mb-3">Ruta no encontrada</p>
-          <Link href="/" className="text-sm text-terracotta hover:underline">Ver todas las rutas</Link>
+          <Link href="/" className="text-sm text-terracotta hover:underline">Volver al inicio</Link>
         </div>
       </main>
     );
   }
 
-  if (!ruta) {
+  if (ruta === null) {
     return (
       <main className="min-h-screen bg-cream flex items-center justify-center px-6 text-center">
         <p className="text-sm text-forest/50">Cargando ruta...</p>
@@ -686,7 +723,7 @@ export default function RutaApp({ slug }: { slug: string }) {
               style={{ touchAction: "manipulation" }}
               className="font-display font-semibold text-lg text-forest select-none"
             >
-              {ruta.nombre}
+              {nombreRuta}
             </button>
           </div>
           {!esAppInstalada && (
@@ -695,17 +732,22 @@ export default function RutaApp({ slug }: { slug: string }) {
               <a href="#embarca" className="text-sm text-forest/70 hover:text-forest transition">En vivo</a>
             </nav>
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2">
+              {mostrarBotonInstalar && (
+                <button
+                  onClick={descargarApp}
+                  className="text-sm font-medium px-4 py-2 rounded-full border border-forest text-forest hover:bg-forest/5 transition"
+                >
+                  ⬇ Descargar
+                </button>
+              )}
+              {!esAppInstalada && (
+                <a href="#embarca" className="text-sm font-medium px-4 py-2 rounded-full bg-forest text-white hover:bg-forest-dark transition">Ver la app</a>
+              )}
+            </div>
             {mostrarBotonInstalar && (
-              <button
-                onClick={descargarApp}
-                className="text-sm font-medium px-4 py-2 rounded-full border border-forest text-forest hover:bg-forest/5 transition"
-              >
-                ⬇ Descargar
-              </button>
-            )}
-            {!esAppInstalada && (
-              <a href="#embarca" className="text-sm font-medium px-4 py-2 rounded-full bg-forest text-white hover:bg-forest-dark transition">Ver la app</a>
+              <span className="text-xs text-forest/40">🗺️ Más rutas en camino</span>
             )}
           </div>
         </div>
@@ -1129,7 +1171,6 @@ export default function RutaApp({ slug }: { slug: string }) {
               <ul className="space-y-2 text-sm">
                 <li><a href="#como-funciona" className="text-white/50 hover:text-white transition">Cómo funciona</a></li>
                 <li><a href="#embarca" className="text-white/50 hover:text-white transition">Demo en vivo</a></li>
-                <li><Link href="/" className="text-white/50 hover:text-white transition">Otras rutas</Link></li>
               </ul>
             </div>
             <div>
@@ -1142,7 +1183,7 @@ export default function RutaApp({ slug }: { slug: string }) {
           </div>
           <div className="pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-2 text-white/40 text-xs">
             <p>Proyecto final — prototipo académico. Ruta del Valle, Mérida.</p>
-            <p>Construido por Leonardo Moscarini y Ismael Fermín · &copy; {new Date().getFullYear()}</p>
+            <p>Construido por Ismael Fermín · &copy; {new Date().getFullYear()}</p>
           </div>
         </div>
       </footer>

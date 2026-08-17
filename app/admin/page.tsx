@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import Link from "next/link";
 import { supabase } from "../supabaseClient";
 
-const CLAVE_ADMIN = "Ismael.1234";
+const CLAVE_ADMIN = "Darley.Ismaely.123456";
 
 type Parada = {
   id: string;
@@ -61,6 +61,9 @@ export default function AdminPage() {
 
   const [rutas, setRutas] = useState<Ruta[]>([]);
   const [rutaSeleccionadaId, setRutaSeleccionadaId] = useState<string | null>(null);
+  // true si la tabla "rutas" todavía no existe (falta correr la migración):
+  // en ese caso el panel sigue funcionando como antes, sin filtrar por ruta.
+  const [modoSinRutas, setModoSinRutas] = useState(false);
   const [nuevaRuta, setNuevaRuta] = useState({ nombre: "", slug: "", descripcion: "" });
   const [editandoRutaId, setEditandoRutaId] = useState<string | null>(null);
   const [editRuta, setEditRuta] = useState({ nombre: "", descripcion: "", activa: true });
@@ -106,7 +109,11 @@ export default function AdminPage() {
   }, [arrastre]);
 
   const cargarRutas = async () => {
-    const { data } = await supabase.from("rutas").select("*").order("nombre");
+    const { data, error } = await supabase.from("rutas").select("*").order("nombre");
+    if (error) {
+      setModoSinRutas(true);
+      return;
+    }
     const lista = (data as Ruta[]) ?? [];
     setRutas(lista);
     setRutaSeleccionadaId((prev) => (prev && lista.some((r) => r.id === prev) ? prev : lista[0]?.id ?? null));
@@ -114,12 +121,18 @@ export default function AdminPage() {
 
   const cargarDatos = async (rutaId?: string) => {
     const id = rutaId ?? rutaSeleccionadaId;
-    if (!id) return;
-    const { data: p } = await supabase.from("paradas").select("id,nombre,orden,orden_vuelta,latitud,longitud").eq("ruta_id", id).order("orden");
+    if (!id && !modoSinRutas) return;
+    let qp = supabase.from("paradas").select("id,nombre,orden,orden_vuelta,latitud,longitud");
+    if (id) qp = qp.eq("ruta_id", id);
+    const { data: p } = await qp.order("orden");
     if (p) setParadas(p as Parada[]);
-    const { data: b } = await supabase.from("buses").select("*").eq("ruta_id", id).order("nombre");
+    let qb = supabase.from("buses").select("*");
+    if (id) qb = qb.eq("ruta_id", id);
+    const { data: b } = await qb.order("nombre");
     if (b) setBuses(b as Bus[]);
-    const { data: cd } = await supabase.from("claves_dia").select("*").eq("ruta_id", id).eq("rol", "coordinador").maybeSingle();
+    let qc = supabase.from("claves_dia").select("*").eq("rol", "coordinador");
+    if (id) qc = qc.eq("ruta_id", id);
+    const { data: cd } = await qc.maybeSingle();
     setClaveCoordDia({ clave: cd?.clave ?? null, fecha: cd?.fecha ?? null, fija: cd?.fija ?? false });
   };
 
@@ -135,11 +148,14 @@ export default function AdminPage() {
   }, [desbloqueado]);
 
   useEffect(() => {
-    if (!rutaSeleccionadaId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    cargarDatos(rutaSeleccionadaId);
+    if (rutaSeleccionadaId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      cargarDatos(rutaSeleccionadaId);
+    } else if (modoSinRutas) {
+      cargarDatos();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rutaSeleccionadaId]);
+  }, [rutaSeleccionadaId, modoSinRutas]);
 
   const intentarDesbloquear = () => {
     if (claveInput === CLAVE_ADMIN) {
@@ -577,7 +593,7 @@ export default function AdminPage() {
   };
 
   const asignarClaveCoordinador = async () => {
-    if (!rutaSeleccionadaId) {
+    if (!rutaSeleccionadaId && !modoSinRutas) {
       setMensaje("Elige primero qué ruta estás gestionando.");
       return;
     }
@@ -588,9 +604,11 @@ export default function AdminPage() {
       return;
     }
     const fija = claveCoordFijaInput || claveCoordDia.fija;
+    const payload: Record<string, unknown> = { rol: "coordinador", clave, fecha: hoy(), fija };
+    if (rutaSeleccionadaId) payload.ruta_id = rutaSeleccionadaId;
     const { data, error } = await supabase
       .from("claves_dia")
-      .upsert({ ruta_id: rutaSeleccionadaId, rol: "coordinador", clave, fecha: hoy(), fija }, { onConflict: "ruta_id,rol" })
+      .upsert(payload, { onConflict: rutaSeleccionadaId ? "ruta_id,rol" : "rol" })
       .select();
     if (error) {
       setMensaje(`Error al asignar clave: ${error.message}`);
@@ -623,7 +641,7 @@ export default function AdminPage() {
       setMensaje("Ponle un nombre a la parada.");
       return;
     }
-    if (!rutaSeleccionadaId) {
+    if (!rutaSeleccionadaId && !modoSinRutas) {
       setMensaje("Elige primero qué ruta estás gestionando.");
       return;
     }
@@ -646,14 +664,15 @@ export default function AdminPage() {
       }
     }
 
-    const { error } = await supabase.from("paradas").insert({
+    const paradaPayload: Record<string, unknown> = {
       nombre: nuevaParada.nombre.trim(),
       orden: null,
       orden_vuelta: null,
       latitud: lat,
       longitud: lng,
-      ruta_id: rutaSeleccionadaId,
-    });
+    };
+    if (rutaSeleccionadaId) paradaPayload.ruta_id = rutaSeleccionadaId;
+    const { error } = await supabase.from("paradas").insert(paradaPayload);
     setAgregandoParada(false);
     if (error) {
       setMensaje(`Error al agregar parada: ${error.message}`);
@@ -676,19 +695,20 @@ export default function AdminPage() {
       setMensaje("Ponle un nombre a la unidad.");
       return;
     }
-    if (!rutaSeleccionadaId) {
+    if (!rutaSeleccionadaId && !modoSinRutas) {
       setMensaje("Elige primero qué ruta estás gestionando.");
       return;
     }
-    const { error } = await supabase.from("buses").insert({
+    const busPayload: Record<string, unknown> = {
       nombre: nuevoBus.nombre.trim(),
       capacidad_total: Number(nuevoBus.capacidad) || 17,
       ocupacion_actual: 0,
       sentido: "ida",
       parada_orden: 1,
       necesita_refuerzo: false,
-      ruta_id: rutaSeleccionadaId,
-    });
+    };
+    if (rutaSeleccionadaId) busPayload.ruta_id = rutaSeleccionadaId;
+    const { error } = await supabase.from("buses").insert(busPayload);
     if (error) {
       setMensaje(`Error al agregar unidad: ${error.message}`);
       return;
@@ -729,7 +749,7 @@ export default function AdminPage() {
         <Link href="/" className="text-xs text-forest/50 hover:text-forest transition">&larr; Next-Router</Link>
         <h1 className="font-display text-3xl text-forest mb-1 mt-2">Panel de administrador</h1>
         <p className="text-sm text-forest/50 mb-6">
-          Gestionando: <span className="font-medium text-forest">{rutas.find((r) => r.id === rutaSeleccionadaId)?.nombre ?? "—"}</span>
+          Gestionando: <span className="font-medium text-forest">{rutas.find((r) => r.id === rutaSeleccionadaId)?.nombre ?? (modoSinRutas ? "Ruta del Valle" : "—")}</span>
         </p>
 
         {mensaje && (
