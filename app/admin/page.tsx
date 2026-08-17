@@ -34,12 +34,13 @@ export default function AdminPage() {
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [fijandoId, setFijandoId] = useState<string | null>(null);
 
-  const [nuevaParada, setNuevaParada] = useState({ nombre: "", orden: "", orden_vuelta: "" });
+  const [nuevaParada, setNuevaParada] = useState({ nombre: "", orden: "", orden_vuelta: "", lat: "", lng: "" });
   const [agregandoParada, setAgregandoParada] = useState(false);
   const [nuevoBus, setNuevoBus] = useState({ nombre: "", capacidad: "17" });
 
   const [editandoParadaId, setEditandoParadaId] = useState<string | null>(null);
-  const [editParada, setEditParada] = useState({ nombre: "", orden: "", orden_vuelta: "" });
+  const [editParada, setEditParada] = useState({ nombre: "", orden: "", orden_vuelta: "", lat: "", lng: "" });
+  const [confirmandoEliminarId, setConfirmandoEliminarId] = useState<string | null>(null);
   const [editandoBusId, setEditandoBusId] = useState<string | null>(null);
   const [editBus, setEditBus] = useState({ nombre: "", capacidad: "" });
 
@@ -79,13 +80,18 @@ export default function AdminPage() {
     setFijandoId(paradaId);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("paradas")
           .update({ latitud: pos.coords.latitude, longitud: pos.coords.longitude })
-          .eq("id", paradaId);
+          .eq("id", paradaId)
+          .select();
         setFijandoId(null);
         if (error) {
           setMensaje(`Error al guardar: ${error.message}`);
+          return;
+        }
+        if (!data || data.length === 0) {
+          setMensaje("No se guardó: falta permiso en Supabase para actualizar paradas.");
           return;
         }
         setMensaje("Ubicación guardada.");
@@ -101,10 +107,13 @@ export default function AdminPage() {
 
   const iniciarEdicionParada = (p: Parada) => {
     setEditandoParadaId(p.id);
+    setConfirmandoEliminarId(null);
     setEditParada({
       nombre: p.nombre,
       orden: p.orden?.toString() ?? "",
       orden_vuelta: p.orden_vuelta?.toString() ?? "",
+      lat: p.latitud?.toString() ?? "",
+      lng: p.longitud?.toString() ?? "",
     });
   };
 
@@ -113,19 +122,45 @@ export default function AdminPage() {
       setMensaje("El nombre no puede quedar vacío.");
       return;
     }
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("paradas")
       .update({
         nombre: editParada.nombre.trim(),
         orden: editParada.orden ? Number(editParada.orden) : null,
         orden_vuelta: editParada.orden_vuelta ? Number(editParada.orden_vuelta) : null,
+        latitud: editParada.lat ? Number(editParada.lat) : null,
+        longitud: editParada.lng ? Number(editParada.lng) : null,
       })
-      .eq("id", id);
+      .eq("id", id)
+      .select();
     if (error) {
       setMensaje(`Error al guardar: ${error.message}`);
       return;
     }
+    if (!data || data.length === 0) {
+      setMensaje("No se guardó: falta permiso en Supabase para actualizar paradas.");
+      return;
+    }
     setMensaje("Parada actualizada.");
+    setEditandoParadaId(null);
+    cargarDatos();
+  };
+
+  const eliminarParada = async (id: string) => {
+    // .select() es necesario para poder confirmar que sí se borró una fila:
+    // si los permisos (RLS) bloquean el delete, Supabase no da error, solo
+    // devuelve 0 filas — sin esto, el mensaje de éxito mentiría.
+    const { data, error } = await supabase.from("paradas").delete().eq("id", id).select();
+    if (error) {
+      setMensaje(`Error al eliminar: ${error.message}`);
+      return;
+    }
+    if (!data || data.length === 0) {
+      setMensaje("No se pudo eliminar: falta el permiso en Supabase (pide el SQL de DELETE).");
+      return;
+    }
+    setMensaje("Parada eliminada.");
+    setConfirmandoEliminarId(null);
     setEditandoParadaId(null);
     cargarDatos();
   };
@@ -140,12 +175,17 @@ export default function AdminPage() {
       setMensaje("Completa nombre y capacidad.");
       return;
     }
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("buses")
       .update({ nombre: editBus.nombre.trim(), capacidad_total: Number(editBus.capacidad) })
-      .eq("id", id);
+      .eq("id", id)
+      .select();
     if (error) {
       setMensaje(`Error al guardar: ${error.message}`);
+      return;
+    }
+    if (!data || data.length === 0) {
+      setMensaje("No se guardó: falta permiso en Supabase para actualizar buses.");
       return;
     }
     setMensaje("Unidad actualizada.");
@@ -172,13 +212,30 @@ export default function AdminPage() {
       return;
     }
     setAgregandoParada(true);
-    const ubicacion = await obtenerUbicacionActual();
+
+    let lat: number | null = null;
+    let lng: number | null = null;
+    let origenUbicacion: "manual" | "gps" | "ninguna" = "ninguna";
+
+    if (nuevaParada.lat.trim() && nuevaParada.lng.trim()) {
+      lat = Number(nuevaParada.lat);
+      lng = Number(nuevaParada.lng);
+      origenUbicacion = "manual";
+    } else {
+      const ubicacion = await obtenerUbicacionActual();
+      if (ubicacion) {
+        lat = ubicacion.lat;
+        lng = ubicacion.lng;
+        origenUbicacion = "gps";
+      }
+    }
+
     const { error } = await supabase.from("paradas").insert({
       nombre: nuevaParada.nombre.trim(),
       orden: nuevaParada.orden ? Number(nuevaParada.orden) : null,
       orden_vuelta: nuevaParada.orden_vuelta ? Number(nuevaParada.orden_vuelta) : null,
-      latitud: ubicacion?.lat ?? null,
-      longitud: ubicacion?.lng ?? null,
+      latitud: lat,
+      longitud: lng,
     });
     setAgregandoParada(false);
     if (error) {
@@ -186,11 +243,13 @@ export default function AdminPage() {
       return;
     }
     setMensaje(
-      ubicacion
+      origenUbicacion === "manual"
+        ? `Parada "${nuevaParada.nombre}" agregada con la coordenada que escribiste.`
+        : origenUbicacion === "gps"
         ? `Parada "${nuevaParada.nombre}" agregada con tu ubicación actual.`
-        : `Parada "${nuevaParada.nombre}" agregada sin ubicación (no se pudo obtener tu GPS) — usa "Fijar aquí" después.`
+        : `Parada "${nuevaParada.nombre}" agregada sin ubicación (no se pudo obtener tu GPS) — usa "Fijar aquí" o escribe la coordenada manual después.`
     );
-    setNuevaParada({ nombre: "", orden: "", orden_vuelta: "" });
+    setNuevaParada({ nombre: "", orden: "", orden_vuelta: "", lat: "", lng: "" });
     cargarDatos();
   };
 
@@ -258,8 +317,9 @@ export default function AdminPage() {
           <h2 className="font-display text-lg text-forest mb-3">Agregar parada</h2>
           <p className="text-xs text-forest/50 mb-3">
             Párate en el sitio físico antes de agregarla — se captura tu ubicación GPS automáticamente.
+            Si no hay buena señal, escribe la coordenada manual abajo (opcional).
           </p>
-          <div className="grid grid-cols-3 gap-2 mb-3">
+          <div className="grid grid-cols-3 gap-2 mb-2">
             <input
               value={nuevaParada.nombre}
               onChange={(e) => setNuevaParada({ ...nuevaParada, nombre: e.target.value })}
@@ -278,6 +338,24 @@ export default function AdminPage() {
               onChange={(e) => setNuevaParada({ ...nuevaParada, orden_vuelta: e.target.value })}
               placeholder="Orden bajada"
               type="number"
+              className="text-sm border border-forest/15 rounded-lg px-3 py-2"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <input
+              value={nuevaParada.lat}
+              onChange={(e) => setNuevaParada({ ...nuevaParada, lat: e.target.value })}
+              placeholder="Latitud (opcional)"
+              type="text"
+              inputMode="decimal"
+              className="text-sm border border-forest/15 rounded-lg px-3 py-2"
+            />
+            <input
+              value={nuevaParada.lng}
+              onChange={(e) => setNuevaParada({ ...nuevaParada, lng: e.target.value })}
+              placeholder="Longitud (opcional)"
+              type="text"
+              inputMode="decimal"
               className="text-sm border border-forest/15 rounded-lg px-3 py-2"
             />
           </div>
@@ -318,6 +396,24 @@ export default function AdminPage() {
                       className="text-sm border border-forest/15 rounded-lg px-3 py-1.5"
                     />
                   </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      value={editParada.lat}
+                      onChange={(e) => setEditParada({ ...editParada, lat: e.target.value })}
+                      placeholder="Latitud"
+                      type="text"
+                      inputMode="decimal"
+                      className="text-sm border border-forest/15 rounded-lg px-3 py-1.5"
+                    />
+                    <input
+                      value={editParada.lng}
+                      onChange={(e) => setEditParada({ ...editParada, lng: e.target.value })}
+                      placeholder="Longitud"
+                      type="text"
+                      inputMode="decimal"
+                      className="text-sm border border-forest/15 rounded-lg px-3 py-1.5"
+                    />
+                  </div>
                   <div className="flex gap-2">
                     <button onClick={() => guardarEdicionParada(p.id)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full bg-forest text-white">
                       Guardar
@@ -326,6 +422,23 @@ export default function AdminPage() {
                       Cancelar
                     </button>
                   </div>
+                  {confirmandoEliminarId === p.id ? (
+                    <div className="flex gap-2 pt-1 border-t border-forest/10 mt-1">
+                      <button onClick={() => eliminarParada(p.id)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full bg-terracotta text-white">
+                        Sí, eliminar
+                      </button>
+                      <button onClick={() => setConfirmandoEliminarId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-forest">
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmandoEliminarId(p.id)}
+                      className="w-full text-xs font-medium px-3 py-1.5 rounded-full border border-terracotta text-terracotta hover:bg-terracotta/10 transition"
+                    >
+                      🗑 Eliminar parada
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div key={p.id} className="flex items-center justify-between gap-3 px-3 py-2 bg-cream rounded-lg text-sm">
