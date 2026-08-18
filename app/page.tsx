@@ -42,9 +42,13 @@ export default function Home() {
     <main className="min-h-screen bg-cream">
       <header className="border-b border-forest/10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <span className="font-display font-semibold text-lg text-forest select-none">
+          <button
+            onDoubleClick={() => router.push("/admin")}
+            style={{ touchAction: "manipulation" }}
+            className="font-display font-semibold text-lg text-forest select-none"
+          >
             Next Route
-          </span>
+          </button>
         </div>
       </header>
 
