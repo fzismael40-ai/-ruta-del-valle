@@ -67,6 +67,7 @@ export default function AdminPage() {
   const [nuevaRuta, setNuevaRuta] = useState({ nombre: "", slug: "", descripcion: "" });
   const [editandoRutaId, setEditandoRutaId] = useState<string | null>(null);
   const [editRuta, setEditRuta] = useState({ nombre: "", descripcion: "", activa: true });
+  const [confirmandoEliminarRutaId, setConfirmandoEliminarRutaId] = useState<string | null>(null);
 
   const [nuevaParada, setNuevaParada] = useState({ nombre: "", lat: "", lng: "" });
   const [agregandoParada, setAgregandoParada] = useState(false);
@@ -215,6 +216,30 @@ export default function AdminPage() {
     }
     setMensaje("Ruta actualizada.");
     setEditandoRutaId(null);
+    cargarRutas();
+  };
+
+  const eliminarRuta = async (id: string) => {
+    const { data, error } = await supabase.from("rutas").delete().eq("id", id).select();
+    if (error) {
+      // Si la ruta todavía tiene paradas, unidades o claves, la base de datos
+      // bloquea el borrado en vez de arrastrarlas también — hay que vaciarla
+      // primero a propósito, para no perder datos reales sin querer.
+      if (error.message.toLowerCase().includes("foreign key") || error.message.toLowerCase().includes("violat")) {
+        setMensaje("No se puede eliminar: esta ruta todavía tiene paradas, unidades o claves. Bórralas primero desde 'Gestionando' esa ruta.");
+      } else {
+        setMensaje(`Error al eliminar: ${error.message}`);
+      }
+      return;
+    }
+    if (!data || data.length === 0) {
+      setMensaje("No se pudo eliminar: falta el permiso en Supabase (pide el SQL de DELETE para rutas).");
+      return;
+    }
+    setMensaje("Ruta eliminada.");
+    setConfirmandoEliminarRutaId(null);
+    setEditandoRutaId(null);
+    if (rutaSeleccionadaId === id) setRutaSeleccionadaId(null);
     cargarRutas();
   };
 
@@ -794,6 +819,24 @@ export default function AdminPage() {
                       Cancelar
                     </button>
                   </div>
+                  {confirmandoEliminarRutaId === r.id ? (
+                    <div className="flex gap-2 items-center pt-1">
+                      <span className="text-xs text-red-600 flex-1">¿Eliminar &quot;{r.nombre}&quot;? No se puede deshacer.</span>
+                      <button onClick={() => eliminarRuta(r.id)} className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full bg-red-600 text-white">
+                        Sí, eliminar
+                      </button>
+                      <button onClick={() => setConfirmandoEliminarRutaId(null)} className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-forest">
+                        Cancelar
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmandoEliminarRutaId(r.id)}
+                      className="text-xs font-medium text-red-600/70 hover:text-red-600 pt-1"
+                    >
+                      Eliminar ruta
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div

@@ -1,21 +1,64 @@
 <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <rect width="64" height="64" rx="14" fill="#142A20"/>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1B3327"/>
+      <stop offset="100%" stop-color="#0A130E"/>
+    </linearGradient>
+    <filter id="glow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="1.3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="dotGlow" cx="35%" cy="32%" r="72%">
+      <stop offset="0%" stop-color="#FFF3D2"/>
+      <stop offset="45%" stop-color="#F7C55C"/>
+      <stop offset="100%" stop-color="#D6922C"/>
+    </radialGradient>
+    <filter id="glowStrong" x="-160%" y="-160%" width="420%" height="420%">
+      <feGaussianBlur stdDeviation="2.6" result="blur1"/>
+      <feGaussianBlur stdDeviation="1.1" result="blur2"/>
+      <feMerge><feMergeNode in="blur1"/><feMergeNode in="blur2"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
 
-  <!-- Cordillera de fondo (más lejos, más clara) -->
-  <path d="M4 40 L16 20 L24 32 L34 14 L44 30 L52 22 L60 40 Z" fill="#3E6478" opacity="0.55"/>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
 
-  <!-- Cordillera de frente (Andes, con nieve) -->
-  <path d="M2 44 L14 24 L20 34 L30 12 L40 32 L48 20 L62 44 Z" fill="#1F3D2E"/>
-  <!-- Nieve en los picos más altos -->
-  <path d="M30 12 L34.5 20 L25.5 20 Z" fill="#F5EFE1"/>
-  <path d="M48 20 L52 26.5 L44 26.5 Z" fill="#F5EFE1"/>
+  <!-- cordillera facetada -->
+  <polygon points="2,44 19,6 30,23 44,44" fill="#274332"/>
+  <polygon points="19,6 30,23 20,33 9,22" fill="#4C7488"/>
+  <polygon points="30,23 44,44 20,33" fill="#1B3327"/>
+  <polygon points="35,44 48,11 63,44" fill="#1E3A2C"/>
+  <polygon points="48,11 63,44 48,44" fill="#274332"/>
+  <polygon points="48,11 57,27 39,27" fill="#2F5768" opacity="0.9"/>
+  <polygon points="19,6 24,15.5 14,15.5" fill="#F7F2E7"/>
+  <polygon points="48,11 52.5,19.5 43.5,19.5" fill="#F7F2E7" opacity="0.95"/>
 
-  <!-- Valle -->
-  <rect x="0" y="44" width="64" height="20" fill="#142A20"/>
+  <!-- camino de montaña en el pico izquierdo, en dorado -->
+  <path d="M8,41 C 13,37 9,32 14,29 C 18,26.5 13,22 17,18.5 C 20,16 16,14 16,14"
+        stroke="#E0A83C" stroke-width="1.4" fill="none" stroke-linecap="round" stroke-linejoin="round"
+        opacity="0.95"/>
+  <!-- punto del bus, abajo en el camino -->
+  <circle cx="8" cy="41" r="2.1" fill="url(#dotGlow)" filter="url(#glowStrong)"/>
 
-  <!-- Carretera bajando al valle -->
-  <path d="M32 44 C 27 49, 37 53, 30 58 C 25 61, 33 62, 32 64" stroke="#C2542C" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- marcador de ubicación, arriba en la montaña -->
+  <g filter="url(#glow)">
+    <circle cx="16.5" cy="13" r="3.4" fill="#E0A83C"/>
+    <polygon points="13.7,15.7 19.3,15.7 16.5,19.2" fill="#E0A83C"/>
+    <circle cx="16.5" cy="13" r="1.4" fill="#0A130E"/>
+  </g>
 
-  <!-- Bus / parada -->
-  <circle cx="32" cy="58" r="3.2" fill="#E0A83C"/>
+  <rect x="0" y="44" width="64" height="20" fill="#0A130E"/>
+
+  <!-- letrero en el piso, a la derecha -->
+  <g filter="url(#glow)" transform="rotate(-4 48 54)">
+    <rect x="36" y="46" width="24" height="16" rx="3" fill="#16281F" stroke="#E0A83C" stroke-width="1.3"/>
+    <text x="48" y="53.4" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="5.4" letter-spacing="0.3" fill="#F7F2E7">NEXT</text>
+    <text x="48" y="59.8" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="5.4" letter-spacing="0.3" fill="#F7F2E7">ROUTE</text>
+  </g>
+
+  <!-- toque de brillo justo donde nace, al pie de la montaña -->
+  <ellipse cx="31" cy="44" rx="3.4" ry="2.4" fill="#F7C55C" opacity="0.4" filter="url(#glow)"/>
+  <!-- ruta corta con su punto, en el valle -->
+  <path d="M31,44 C 28,47 32,50 30,53 C 29,54.3 30,54.8 30,55.5"
+        stroke="#E0A83C" stroke-width="1.4" fill="none" stroke-linecap="round" opacity="0.9"/>
+  <circle cx="30" cy="55.5" r="2.1" fill="url(#dotGlow)" filter="url(#glowStrong)"/>
 </svg>
