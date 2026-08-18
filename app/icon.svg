@@ -1,6 +1,21 @@
-<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-  <rect width="32" height="32" rx="7" fill="#1F3D2E"/>
-  <path d="M3 24 L11 12 L16 19 L21 9 L29 24 Z" fill="#C2542C"/>
-  <rect x="0" y="24" width="32" height="8" fill="#1F3D2E"/>
-  <circle cx="16" cy="24" r="2.4" fill="#E0A83C"/>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <rect width="64" height="64" rx="14" fill="#142A20"/>
+
+  <!-- Cordillera de fondo (más lejos, más clara) -->
+  <path d="M4 40 L16 20 L24 32 L34 14 L44 30 L52 22 L60 40 Z" fill="#3E6478" opacity="0.55"/>
+
+  <!-- Cordillera de frente (Andes, con nieve) -->
+  <path d="M2 44 L14 24 L20 34 L30 12 L40 32 L48 20 L62 44 Z" fill="#1F3D2E"/>
+  <!-- Nieve en los picos más altos -->
+  <path d="M30 12 L34.5 20 L25.5 20 Z" fill="#F5EFE1"/>
+  <path d="M48 20 L52 26.5 L44 26.5 Z" fill="#F5EFE1"/>
+
+  <!-- Valle -->
+  <rect x="0" y="44" width="64" height="20" fill="#142A20"/>
+
+  <!-- Carretera bajando al valle -->
+  <path d="M32 44 C 27 49, 37 53, 30 58 C 25 61, 33 62, 32 64" stroke="#C2542C" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <!-- Bus / parada -->
+  <circle cx="32" cy="58" r="3.2" fill="#E0A83C"/>
 </svg>
