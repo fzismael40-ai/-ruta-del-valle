@@ -61,6 +61,9 @@ export default function AdminPage() {
 
   const [rutas, setRutas] = useState<Ruta[]>([]);
   const [rutaSeleccionadaId, setRutaSeleccionadaId] = useState<string | null>(null);
+  // "Next Route" entra directo a gestionar (?full=1): sin la lista de rutas
+  // de por medio. "administrador" entra a elegir/crear ruta primero.
+  const [entrarCompleto, setEntrarCompleto] = useState(false);
   // true si la tabla "rutas" todavía no existe (falta correr la migración):
   // en ese caso el panel sigue funcionando como antes, sin filtrar por ruta.
   const [modoSinRutas, setModoSinRutas] = useState(false);
@@ -117,9 +120,9 @@ export default function AdminPage() {
     }
     const lista = (data as Ruta[]) ?? [];
     setRutas(lista);
-    const entrarCompleto = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("full") === "1";
+    const completo = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("full") === "1";
     setRutaSeleccionadaId((prev) =>
-      prev && lista.some((r) => r.id === prev) ? prev : entrarCompleto ? lista[0]?.id ?? null : null
+      prev && lista.some((r) => r.id === prev) ? prev : completo ? lista[0]?.id ?? null : null
     );
   };
 
@@ -143,6 +146,7 @@ export default function AdminPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (localStorage.getItem("admin-clave") === CLAVE_ADMIN) setDesbloqueado(true);
+    setEntrarCompleto(new URLSearchParams(window.location.search).get("full") === "1");
   }, []);
 
   useEffect(() => {
@@ -787,6 +791,7 @@ export default function AdminPage() {
           </div>
         )}
 
+        {!entrarCompleto && (
         <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
           <h2 className="font-display text-lg text-forest mb-3">Rutas</h2>
           <p className="text-xs text-forest/50 mb-3">Toca una ruta para gestionarla (paradas, unidades y claves de abajo aplican a la que esté seleccionada).</p>
@@ -880,6 +885,7 @@ export default function AdminPage() {
             Agregar ruta
           </button>
         </section>
+        )}
 
         {(rutaSeleccionadaId || modoSinRutas) && (
         <>
