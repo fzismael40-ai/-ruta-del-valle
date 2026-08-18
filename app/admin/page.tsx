@@ -787,15 +787,7 @@ export default function AdminPage() {
         <h1 className="font-display text-3xl text-forest mb-1 mt-2">Panel de administrador</h1>
         <p className="text-sm text-forest/50 mb-6">
           <span
-            onDoubleClick={() => {
-              if (entrarCompleto) {
-                setEntrarCompleto(false);
-              } else {
-                setEntrarCompleto(true);
-                localStorage.removeItem("admin-clave");
-                setDesbloqueado(false);
-              }
-            }}
+            onDoubleClick={() => setEntrarCompleto((v) => !v)}
             style={{ touchAction: "manipulation" }}
           >
             Gestionando
