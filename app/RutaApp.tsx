@@ -2,7 +2,6 @@
 import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { supabase } from "./supabaseClient";
 import { rutaIdaCarretera, rutaVueltaCarretera } from "./rutaCarreteras";
 
@@ -67,7 +66,6 @@ type Parada = {
 };
 
 export default function RutaApp({ slug }: { slug: string }) {
-  const router = useRouter();
   // Empieza sin resolver en ambos lados (servidor y cliente); el useEffect de
   // abajo busca la ruta por slug solo en el navegador, después del primer
   // render, y recién ahí se sabe si existe o no.
@@ -717,13 +715,9 @@ export default function RutaApp({ slug }: { slug: string }) {
       <header className="sticky top-0 z-30 backdrop-blur border-b border-forest/10" style={{background:"rgba(246,241,231,0.9)"}}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <button
-              onDoubleClick={() => router.push("/admin")}
-              style={{ touchAction: "manipulation" }}
-              className="font-display font-semibold text-lg text-forest select-none"
-            >
+            <span className="font-display font-semibold text-lg text-forest select-none">
               Next Route
-            </button>
+            </span>
           </div>
           {!esAppInstalada && (
             <nav className="hidden sm:flex items-center gap-6">

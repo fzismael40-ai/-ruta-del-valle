@@ -24,6 +24,7 @@ const RUTA_VALLE_RESPALDO: Ruta = {
 export default function Home() {
   const router = useRouter();
   const [rutas, setRutas] = useState<Ruta[]>([RUTA_VALLE_RESPALDO]);
+  const [busqueda, setBusqueda] = useState("");
 
   useEffect(() => {
     const fetchRutas = async () => {
@@ -33,17 +34,17 @@ export default function Home() {
     fetchRutas();
   }, []);
 
+  const rutasFiltradas = rutas.filter((r) =>
+    r.nombre.toLowerCase().includes(busqueda.trim().toLowerCase())
+  );
+
   return (
     <main className="min-h-screen bg-cream">
       <header className="border-b border-forest/10">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button
-            onDoubleClick={() => router.push("/admin")}
-            style={{ touchAction: "manipulation" }}
-            className="font-display font-semibold text-lg text-forest select-none"
-          >
+          <span className="font-display font-semibold text-lg text-forest select-none">
             Next Route
-          </button>
+          </span>
         </div>
       </header>
 
@@ -54,12 +55,22 @@ export default function Home() {
         <h1 className="font-display text-3xl sm:text-4xl text-forest leading-tight mb-3">
           Elige tu ruta
         </h1>
-        <p className="text-forest/60 mb-10 max-w-xl">
+        <p className="text-forest/60 mb-6 max-w-xl">
           Next Route rastrea buses en tiempo real, ruta por ruta.
         </p>
 
+        {rutas.length > 1 && (
+          <input
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar ruta..."
+            className="w-full max-w-md mb-8 text-sm border border-forest/15 rounded-full px-4 py-2.5 bg-paper focus:outline-none focus:border-forest/40"
+          />
+        )}
+
         <div className="grid sm:grid-cols-2 gap-4 max-w-md">
-          {rutas.map((r) => (
+          {rutasFiltradas.map((r) => (
             <Link
               key={r.id}
               href={`/r/${r.slug}`}
@@ -78,7 +89,11 @@ export default function Home() {
 
       <footer className="border-t border-forest/10 py-8">
         <div className="max-w-4xl mx-auto px-6 text-center text-xs text-forest/40">
-          Next Route · Construido por Ismael Fermín · &copy; {new Date().getFullYear()}
+          Next Route · Construido por Ismael Fermín,{" "}
+          <span onDoubleClick={() => router.push("/admin")} style={{ touchAction: "manipulation" }}>
+            administrador
+          </span>{" "}
+          · &copy; {new Date().getFullYear()}
         </div>
       </footer>
     </main>
