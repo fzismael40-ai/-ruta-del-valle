@@ -781,7 +781,18 @@ export default function AdminPage() {
         <Link href="/" className="text-xs text-forest/50 hover:text-forest transition">&larr; Next Route</Link>
         <h1 className="font-display text-3xl text-forest mb-1 mt-2">Panel de administrador</h1>
         <p className="text-sm text-forest/50 mb-6">
-          <span onDoubleClick={() => setEntrarCompleto(false)} style={{ touchAction: "manipulation" }}>
+          <span
+            onDoubleClick={() => {
+              if (entrarCompleto) {
+                setEntrarCompleto(false);
+              } else {
+                setEntrarCompleto(true);
+                localStorage.removeItem("admin-clave");
+                setDesbloqueado(false);
+              }
+            }}
+            style={{ touchAction: "manipulation" }}
+          >
             Gestionando
           </span>
           : <span className="font-medium text-forest">{rutas.find((r) => r.id === rutaSeleccionadaId)?.nombre ?? (modoSinRutas ? "Ruta del Valle" : "—")}</span>
