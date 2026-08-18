@@ -147,6 +147,11 @@ export default function AdminPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (localStorage.getItem("admin-clave") === CLAVE_ADMIN) setDesbloqueado(true);
     setEntrarCompleto(new URLSearchParams(window.location.search).get("full") === "1");
+    // Al salir del panel (navegar a otra página) se bloquea solo: la próxima
+    // vez que se entre, sea por donde sea, va a pedir la clave de nuevo.
+    return () => {
+      localStorage.removeItem("admin-clave");
+    };
   }, []);
 
   useEffect(() => {
