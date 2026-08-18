@@ -117,7 +117,10 @@ export default function AdminPage() {
     }
     const lista = (data as Ruta[]) ?? [];
     setRutas(lista);
-    setRutaSeleccionadaId((prev) => (prev && lista.some((r) => r.id === prev) ? prev : null));
+    const entrarCompleto = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("full") === "1";
+    setRutaSeleccionadaId((prev) =>
+      prev && lista.some((r) => r.id === prev) ? prev : entrarCompleto ? lista[0]?.id ?? null : null
+    );
   };
 
   const cargarDatos = async (rutaId?: string) => {

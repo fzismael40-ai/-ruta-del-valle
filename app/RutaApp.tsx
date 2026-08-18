@@ -718,7 +718,7 @@ export default function RutaApp({ slug }: { slug: string }) {
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
-              onDoubleClick={() => router.push("/admin")}
+              onDoubleClick={() => router.push("/admin?full=1")}
               style={{ touchAction: "manipulation" }}
               className="font-display font-semibold text-lg text-forest select-none"
             >
