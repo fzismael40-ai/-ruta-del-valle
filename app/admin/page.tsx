@@ -117,7 +117,7 @@ export default function AdminPage() {
     }
     const lista = (data as Ruta[]) ?? [];
     setRutas(lista);
-    setRutaSeleccionadaId((prev) => (prev && lista.some((r) => r.id === prev) ? prev : lista[0]?.id ?? null));
+    setRutaSeleccionadaId((prev) => (prev && lista.some((r) => r.id === prev) ? prev : null));
   };
 
   const cargarDatos = async (rutaId?: string) => {
@@ -878,6 +878,8 @@ export default function AdminPage() {
           </button>
         </section>
 
+        {(rutaSeleccionadaId || modoSinRutas) && (
+        <>
         <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
           <h2 className="font-display text-lg text-forest mb-3">Agregar parada</h2>
           <p className="text-xs text-forest/50 mb-3">
@@ -1232,6 +1234,8 @@ export default function AdminPage() {
             Sin vencimiento (no pedirle clave nueva cada día)
           </label>
         </section>
+        </>
+        )}
       </div>
     </main>
   );
