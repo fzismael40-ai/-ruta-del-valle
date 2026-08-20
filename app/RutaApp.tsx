@@ -818,6 +818,28 @@ export default function RutaApp({ slug }: { slug: string }) {
           <div className="flex flex-col items-end gap-1">
             <div className="flex items-center gap-2">
               <TemaIcono />
+              {soportaHuellaOFace() && role === "piloto" && miBusDesbloqueado && miBus && !huellaBusDisponible && (
+                <button
+                  onClick={() => activarHuellaBus(miBus)}
+                  aria-label="Activar huella o Face ID para esta unidad"
+                  title="Activar huella / Face ID"
+                  style={{ touchAction: "manipulation" }}
+                  className="w-9 h-9 rounded-full border border-forest/20 flex items-center justify-center text-ink hover:bg-forest/5 transition shrink-0"
+                >
+                  👆
+                </button>
+              )}
+              {soportaHuellaOFace() && role === "coordinador" && coordinadorDesbloqueado && !huellaCoordDisponible && (
+                <button
+                  onClick={activarHuellaCoord}
+                  aria-label="Activar huella o Face ID para coordinador"
+                  title="Activar huella / Face ID"
+                  style={{ touchAction: "manipulation" }}
+                  className="w-9 h-9 rounded-full border border-forest/20 flex items-center justify-center text-ink hover:bg-forest/5 transition shrink-0"
+                >
+                  👆
+                </button>
+              )}
               {mostrarBotonInstalar && (
                 <button
                   onClick={descargarApp}
