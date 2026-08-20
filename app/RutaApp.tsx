@@ -709,7 +709,18 @@ export default function RutaApp({ slug }: { slug: string }) {
 
   const alternarActivo = async () => {
     if (!miBus) return;
+    const finDeTurno = miBus.activo;
     await supabase.from("buses").update({ activo: !miBus.activo, updated_at: new Date().toISOString() }).eq("id", miBus.id);
+    // Al terminar el turno ("Salir de la línea") se cierra la sesión de esa
+    // unidad: la próxima vez que alguien quiera reincorporarse tiene que
+    // volver a poner la clave (o la huella) — así el GPS no queda prendido
+    // solo, y arranca de nuevo justo cuando se reincorporen.
+    if (finDeTurno) {
+      const nuevas = { ...verificacionesPiloto };
+      delete nuevas[miBus.id];
+      localStorage.setItem("piloto-verificaciones", JSON.stringify(nuevas));
+      setVerificacionesPiloto(nuevas);
+    }
   };
 
   const textoBotonPiloto = esFinalDeLista
@@ -826,7 +837,7 @@ export default function RutaApp({ slug }: { slug: string }) {
                   style={{ touchAction: "manipulation" }}
                   className="w-9 h-9 rounded-full border border-forest/20 flex items-center justify-center text-ink hover:bg-forest/5 transition shrink-0"
                 >
-                  👆
+                  🔒
                 </button>
               )}
               {soportaHuellaOFace() && role === "coordinador" && coordinadorDesbloqueado && !huellaCoordDisponible && (
@@ -837,7 +848,7 @@ export default function RutaApp({ slug }: { slug: string }) {
                   style={{ touchAction: "manipulation" }}
                   className="w-9 h-9 rounded-full border border-forest/20 flex items-center justify-center text-ink hover:bg-forest/5 transition shrink-0"
                 >
-                  👆
+                  🔒
                 </button>
               )}
               {mostrarBotonInstalar && (
