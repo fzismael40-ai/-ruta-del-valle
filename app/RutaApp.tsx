@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "./supabaseClient";
 import { rutaIdaCarretera, rutaVueltaCarretera } from "./rutaCarreteras";
+import { soportaHuellaOFace, existeHuella, entrarConHuella, registrarHuella } from "./webauthnCliente";
 
 const MapaRuta = dynamic(() => import("./MapaRuta"), { ssr: false });
 
@@ -108,6 +109,12 @@ export default function RutaApp({ slug }: { slug: string }) {
   const [verificacionCoordinador, setVerificacionCoordinador] = useState<{ fecha: string; clave: string } | null>(null);
   const [claveCoordInput, setClaveCoordInput] = useState("");
   const [claveCoordError, setClaveCoordError] = useState(false);
+  const [huellaBusDisponible, setHuellaBusDisponible] = useState(false);
+  const [ofrecerActivarHuellaBus, setOfrecerActivarHuellaBus] = useState(false);
+  const [huellaMensajeBus, setHuellaMensajeBus] = useState<string | null>(null);
+  const [huellaCoordDisponible, setHuellaCoordDisponible] = useState(false);
+  const [ofrecerActivarHuellaCoord, setOfrecerActivarHuellaCoord] = useState(false);
+  const [huellaMensajeCoord, setHuellaMensajeCoord] = useState<string | null>(null);
   const [ubicacionActiva, setUbicacionActiva] = useState(false);
   const [ubicacionError, setUbicacionError] = useState<string | null>(null);
   const ultimoEnvioUbicacionRef = useRef(0);
@@ -201,30 +208,92 @@ export default function RutaApp({ slug }: { slug: string }) {
     );
   };
 
+  const marcarBusVerificado = (bus: Bus) => {
+    const nuevas = { ...verificacionesPiloto, [bus.id]: { fecha: hoy(), clave: bus.clave_actual! } };
+    localStorage.setItem("piloto-verificaciones", JSON.stringify(nuevas));
+    setVerificacionesPiloto(nuevas);
+    setClaveBusError(false);
+    setClaveBusInput("");
+    // Al entrar, la unidad vuelve a aparecer en el mapa: así no depende de
+    // que el piloto se acuerde de "Reincorporarme".
+    supabase.from("buses").update({ activo: true }).eq("id", bus.id);
+  };
+
   const intentarDesbloquearBus = (bus: Bus) => {
     if ((bus.clave_fija || bus.clave_fecha === hoy()) && bus.clave_actual !== null && claveBusInput === bus.clave_actual) {
-      const nuevas = { ...verificacionesPiloto, [bus.id]: { fecha: hoy(), clave: bus.clave_actual } };
-      localStorage.setItem("piloto-verificaciones", JSON.stringify(nuevas));
-      setVerificacionesPiloto(nuevas);
-      setClaveBusError(false);
-      setClaveBusInput("");
-      // Al entrar con la clave del día, la unidad vuelve a aparecer en el
-      // mapa: así no depende de que el piloto se acuerde de "Reincorporarme".
-      supabase.from("buses").update({ activo: true }).eq("id", bus.id);
+      marcarBusVerificado(bus);
+      if (soportaHuellaOFace()) {
+        existeHuella({ tipo: "piloto", busId: bus.id }).then((existe) => {
+          setHuellaBusDisponible(existe);
+          if (!existe) setOfrecerActivarHuellaBus(true);
+        });
+      }
     } else {
       setClaveBusError(true);
     }
   };
 
+  const entrarConHuellaBus = async (bus: Bus) => {
+    setHuellaMensajeBus(null);
+    const r = await entrarConHuella({ tipo: "piloto", busId: bus.id });
+    if (r.ok) {
+      marcarBusVerificado(bus);
+    } else if (!r.sinCredencial) {
+      setHuellaMensajeBus(r.error ?? "No se pudo entrar con huella.");
+    }
+  };
+
+  const activarHuellaBus = async (bus: Bus) => {
+    setHuellaMensajeBus(null);
+    const r = await registrarHuella({ tipo: "piloto", busId: bus.id }, bus.nombre);
+    if (r.ok) {
+      setHuellaBusDisponible(true);
+      setOfrecerActivarHuellaBus(false);
+    } else {
+      setHuellaMensajeBus(r.error ?? "No se pudo activar.");
+    }
+  };
+
+  const marcarCoordinadorVerificado = (clave: string) => {
+    const nueva = { fecha: hoy(), clave };
+    localStorage.setItem(`coordinador-verificacion-${slug}`, JSON.stringify(nueva));
+    setVerificacionCoordinador(nueva);
+    setClaveCoordError(false);
+    setClaveCoordInput("");
+  };
+
   const intentarDesbloquearCoordinador = () => {
     if ((claveDiaCoordinador.fija || claveDiaCoordinador.fecha === hoy()) && claveDiaCoordinador.clave !== null && claveCoordInput === claveDiaCoordinador.clave) {
-      const nueva = { fecha: hoy(), clave: claveDiaCoordinador.clave };
-      localStorage.setItem(`coordinador-verificacion-${slug}`, JSON.stringify(nueva));
-      setVerificacionCoordinador(nueva);
-      setClaveCoordError(false);
-      setClaveCoordInput("");
+      marcarCoordinadorVerificado(claveDiaCoordinador.clave);
+      if (soportaHuellaOFace()) {
+        existeHuella({ tipo: "coordinador", rutaId: rutaId ?? undefined }).then((existe) => {
+          setHuellaCoordDisponible(existe);
+          if (!existe) setOfrecerActivarHuellaCoord(true);
+        });
+      }
     } else {
       setClaveCoordError(true);
+    }
+  };
+
+  const entrarConHuellaCoord = async () => {
+    setHuellaMensajeCoord(null);
+    const r = await entrarConHuella({ tipo: "coordinador", rutaId: rutaId ?? undefined });
+    if (r.ok && claveDiaCoordinador.clave) {
+      marcarCoordinadorVerificado(claveDiaCoordinador.clave);
+    } else if (!r.sinCredencial) {
+      setHuellaMensajeCoord(r.error ?? "No se pudo entrar con huella.");
+    }
+  };
+
+  const activarHuellaCoord = async () => {
+    setHuellaMensajeCoord(null);
+    const r = await registrarHuella({ tipo: "coordinador", rutaId: rutaId ?? undefined }, "Coordinador");
+    if (r.ok) {
+      setHuellaCoordDisponible(true);
+      setOfrecerActivarHuellaCoord(false);
+    } else {
+      setHuellaMensajeCoord(r.error ?? "No se pudo activar.");
     }
   };
 
@@ -430,6 +499,20 @@ export default function RutaApp({ slug }: { slug: string }) {
   const totalParadas = listaActual.length;
   const esVuelta = miBus?.sentido === "vuelta";
   const esFinalDeLista = miBus ? miBus.parada_orden >= totalParadas : false;
+
+  useEffect(() => {
+    if (!miBus?.id || !soportaHuellaOFace()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setHuellaBusDisponible(false);
+      return;
+    }
+    existeHuella({ tipo: "piloto", busId: miBus.id }).then(setHuellaBusDisponible);
+  }, [miBus?.id]);
+
+  useEffect(() => {
+    if (!soportaHuellaOFace()) return;
+    existeHuella({ tipo: "coordinador", rutaId: rutaId ?? undefined }).then(setHuellaCoordDisponible);
+  }, [rutaId]);
 
   const pilotoBusDesbloqueado = (bus: Bus | undefined) => {
     if (!bus || bus.clave_actual === null || (!bus.clave_fija && bus.clave_fecha !== hoy())) return false;
@@ -961,11 +1044,29 @@ export default function RutaApp({ slug }: { slug: string }) {
                         <button onClick={() => intentarDesbloquearBus(miBus)} className="w-full py-2.5 rounded-full bg-forest text-white text-sm font-medium">
                           Entrar
                         </button>
+                        {huellaBusDisponible && (
+                          <button
+                            onClick={() => entrarConHuellaBus(miBus)}
+                            className="w-full mt-2 py-2.5 rounded-full border border-forest text-forest text-sm font-medium"
+                          >
+                            👆 Entrar con huella / Face ID
+                          </button>
+                        )}
+                        {huellaMensajeBus && <p className="text-xs text-terracotta mt-2">{huellaMensajeBus}</p>}
                       </>
                     )}
                   </div>
                 ) : (
                   <>
+                    {ofrecerActivarHuellaBus && miBus && (
+                      <div className="bg-mustard/15 text-forest text-xs rounded-lg px-3 py-2.5 mb-3 flex items-center justify-between gap-2">
+                        <span>¿Activar huella / Face ID para {miBus.nombre}?</span>
+                        <div className="flex gap-2 shrink-0">
+                          <button onClick={() => activarHuellaBus(miBus)} className="font-medium px-2.5 py-1 rounded-full bg-forest text-white">Activar</button>
+                          <button onClick={() => setOfrecerActivarHuellaBus(false)} className="text-forest/50">Ahora no</button>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`w-2 h-2 rounded-full ${ubicacionActiva ? "bg-teal" : "bg-forest/25"}`}></span>
                       <span className="text-xs text-forest/50">
@@ -1035,11 +1136,29 @@ export default function RutaApp({ slug }: { slug: string }) {
                         <button onClick={intentarDesbloquearCoordinador} className="w-full py-2.5 rounded-full bg-forest text-white text-sm font-medium">
                           Entrar
                         </button>
+                        {huellaCoordDisponible && (
+                          <button
+                            onClick={entrarConHuellaCoord}
+                            className="w-full mt-2 py-2.5 rounded-full border border-forest text-forest text-sm font-medium"
+                          >
+                            👆 Entrar con huella / Face ID
+                          </button>
+                        )}
+                        {huellaMensajeCoord && <p className="text-xs text-terracotta mt-2">{huellaMensajeCoord}</p>}
                       </>
                     )}
                   </div>
                 ) : (
                   <>
+                {ofrecerActivarHuellaCoord && (
+                  <div className="bg-mustard/15 text-forest text-xs rounded-lg px-3 py-2.5 mb-3 flex items-center justify-between gap-2">
+                    <span>¿Activar huella / Face ID para coordinador?</span>
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={activarHuellaCoord} className="font-medium px-2.5 py-1 rounded-full bg-forest text-white">Activar</button>
+                      <button onClick={() => setOfrecerActivarHuellaCoord(false)} className="text-forest/50">Ahora no</button>
+                    </div>
+                  </div>
+                )}
                 {demanda && (demanda.ida > 0 || demanda.vuelta > 0) && (
                   <div className="bg-mustard/15 rounded-lg px-3 py-2.5 mb-3">
                     <p className="text-xs text-mustard-dark font-medium mb-1">Demanda estimada (últimos 30 min, por check-in QR)</p>

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import Link from "next/link";
 import { supabase } from "../supabaseClient";
+import { soportaHuellaOFace, existeHuella, entrarConHuella, registrarHuella } from "../webauthnCliente";
 
 const CLAVE_ADMIN = "Darley.Ismaely.123456";
 
@@ -53,6 +54,9 @@ export default function AdminPage() {
   const [desbloqueado, setDesbloqueado] = useState(false);
   const [claveInput, setClaveInput] = useState("");
   const [claveError, setClaveError] = useState(false);
+  const [huellaDisponible, setHuellaDisponible] = useState(false);
+  const [huellaMensaje, setHuellaMensaje] = useState<string | null>(null);
+  const [ofrecerActivarHuella, setOfrecerActivarHuella] = useState(false);
 
   const [paradas, setParadas] = useState<Parada[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
@@ -155,6 +159,13 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
+    if (!soportaHuellaOFace()) return;
+    existeHuella({ tipo: "admin" }).then((existe) => {
+      setHuellaDisponible(existe);
+    });
+  }, []);
+
+  useEffect(() => {
     if (!desbloqueado) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarRutas();
@@ -170,13 +181,38 @@ export default function AdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rutaSeleccionadaId, modoSinRutas]);
 
-  const intentarDesbloquear = () => {
+  const intentarDesbloquear = async () => {
     if (claveInput === CLAVE_ADMIN) {
       localStorage.setItem("admin-clave", CLAVE_ADMIN);
       setDesbloqueado(true);
       setClaveError(false);
+      if (soportaHuellaOFace() && !(await existeHuella({ tipo: "admin" }))) {
+        setOfrecerActivarHuella(true);
+      }
     } else {
       setClaveError(true);
+    }
+  };
+
+  const entrarConHuellaAdmin = async () => {
+    setHuellaMensaje(null);
+    const r = await entrarConHuella({ tipo: "admin" });
+    if (r.ok) {
+      localStorage.setItem("admin-clave", CLAVE_ADMIN);
+      setDesbloqueado(true);
+    } else if (!r.sinCredencial) {
+      setHuellaMensaje(r.error ?? "No se pudo entrar con huella.");
+    }
+  };
+
+  const activarHuellaAdmin = async () => {
+    setHuellaMensaje(null);
+    const r = await registrarHuella({ tipo: "admin" }, "Panel de administrador");
+    if (r.ok) {
+      setHuellaDisponible(true);
+      setOfrecerActivarHuella(false);
+    } else {
+      setHuellaMensaje(r.error ?? "No se pudo activar.");
     }
   };
 
@@ -772,6 +808,15 @@ export default function AdminPage() {
           <button onClick={intentarDesbloquear} className="w-full py-2.5 rounded-full bg-forest text-white text-sm font-medium">
             Entrar
           </button>
+          {huellaDisponible && (
+            <button
+              onClick={entrarConHuellaAdmin}
+              className="w-full mt-2 py-2.5 rounded-full border border-forest text-forest text-sm font-medium"
+            >
+              👆 Entrar con huella / Face ID
+            </button>
+          )}
+          {huellaMensaje && <p className="text-xs text-terracotta mt-2">{huellaMensaje}</p>}
           <Link href="/" className="block text-center text-xs text-forest/50 mt-4 hover:text-forest transition">
             &larr; Volver al inicio
           </Link>
@@ -800,6 +845,19 @@ export default function AdminPage() {
             <span>{mensaje}</span>
             <button onClick={() => setMensaje(null)} className="text-teal-dark/60 hover:text-teal-dark ml-3">✕</button>
           </div>
+        )}
+
+        {ofrecerActivarHuella && (
+          <div className="bg-mustard/15 text-forest text-sm rounded-lg px-4 py-2.5 mb-6 flex justify-between items-center gap-3">
+            <span>¿Activar huella / Face ID para no escribir la clave la próxima vez?</span>
+            <div className="flex gap-2 shrink-0">
+              <button onClick={activarHuellaAdmin} className="text-xs font-medium px-3 py-1.5 rounded-full bg-forest text-white">Activar</button>
+              <button onClick={() => setOfrecerActivarHuella(false)} className="text-xs text-forest/50">Ahora no</button>
+            </div>
+          </div>
+        )}
+        {huellaMensaje && desbloqueado && (
+          <p className="text-xs text-terracotta mb-4">{huellaMensaje}</p>
         )}
 
         {!entrarCompleto && (
