@@ -4,6 +4,11 @@
 @theme {
   --color-forest: #1F3D2E;
   --color-forest-dark: #142A20;
+  /* Fijos: para bloques que siempre deben verse "verde oscuro de marca" sin
+     importar el tema (por ejemplo la franja "Pruébala tú mismo" o el pie de
+     página) — a diferencia de --color-forest, esta no cambia en oscuro. */
+  --color-forest-fijo: #1F3D2E;
+  --color-forest-fijo-dark: #142A20;
   --color-cream: #F5EFE1;
   --color-paper: #FFFDF7;
   --color-terracotta: #C2542C;
@@ -17,6 +22,28 @@
 
   --font-display: 'Fraunces', serif;
   --font-sans: 'Inter', sans-serif;
+}
+
+/* Modo oscuro: mismos nombres de color de siempre (cream, paper, ink,
+   forest...) con otros valores, así que ningún componente necesita cambiar
+   sus clases — solo cambia qué hay detrás de "bg-cream" o "text-forest".
+   Sigue las preferencias del sistema hasta que la persona elige a mano
+   (entonces gana data-theme, puesto por Ajustes.tsx). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-cream: #18181A;
+    --color-paper: #232326;
+    --color-forest: #6FBE93;
+    --color-forest-dark: #56A67C;
+    --color-ink: #F5F5F3;
+  }
+}
+:root[data-theme="dark"] {
+  --color-cream: #18181A;
+  --color-paper: #232326;
+  --color-forest: #6FBE93;
+  --color-forest-dark: #56A67C;
+  --color-ink: #ECEAE5;
 }
 
 html {

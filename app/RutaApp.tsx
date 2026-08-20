@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "./supabaseClient";
 import { rutaIdaCarretera, rutaVueltaCarretera } from "./rutaCarreteras";
 import { soportaHuellaOFace, existeHuella, entrarConHuella, registrarHuella } from "./webauthnCliente";
+import TemaIcono from "./TemaIcono";
 
 const MapaRuta = dynamic(() => import("./MapaRuta"), { ssr: false });
 
@@ -797,7 +798,7 @@ export default function RutaApp({ slug }: { slug: string }) {
 
   return (
     <>
-      <header className="sticky top-0 z-30 backdrop-blur border-b border-forest/10" style={{background:"rgba(246,241,231,0.9)"}}>
+      <header className="sticky top-0 z-30 backdrop-blur border-b border-forest/10" style={{background:"color-mix(in srgb, var(--color-cream) 90%, transparent)"}}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
@@ -816,6 +817,7 @@ export default function RutaApp({ slug }: { slug: string }) {
           )}
           <div className="flex flex-col items-end gap-1">
             <div className="flex items-center gap-2">
+              <TemaIcono />
               {mostrarBotonInstalar && (
                 <button
                   onClick={descargarApp}
@@ -949,7 +951,7 @@ export default function RutaApp({ slug }: { slug: string }) {
       </>
       )}
 
-      <section id="embarca" className={`scroll-mt-20 bg-forest ${esAppInstalada ? "pt-10 pb-20" : "py-20"}`}>
+      <section id="embarca" className={`scroll-mt-20 bg-forest-fijo ${esAppInstalada ? "pt-10 pb-20" : "py-20"}`}>
         <div className="max-w-6xl mx-auto px-6">
           {!esAppInstalada && (
             <>
@@ -1285,7 +1287,7 @@ export default function RutaApp({ slug }: { slug: string }) {
       </section>
 
       {!esAppInstalada && (
-      <footer className="bg-forest-dark py-14">
+      <footer className="bg-forest-fijo-dark py-14">
         <div className="max-w-6xl mx-auto px-6">
           <div className="grid sm:grid-cols-3 gap-10 mb-10">
             <div>

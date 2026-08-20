@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "./supabaseClient";
+import TemaIcono from "./TemaIcono";
 
 type Ruta = {
   id: string;
@@ -49,6 +50,7 @@ export default function Home() {
           >
             Next Route
           </button>
+          <TemaIcono />
         </div>
       </header>
 

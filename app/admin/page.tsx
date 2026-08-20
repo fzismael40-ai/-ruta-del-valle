@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import Link from "next/link";
 import { supabase } from "../supabaseClient";
 import { soportaHuellaOFace, existeHuella, entrarConHuella, registrarHuella } from "../webauthnCliente";
+import Ajustes from "../Ajustes";
+import TemaIcono from "../TemaIcono";
 
 const CLAVE_ADMIN = "Darley.Ismaely.123456";
 
@@ -56,7 +58,6 @@ export default function AdminPage() {
   const [claveError, setClaveError] = useState(false);
   const [huellaDisponible, setHuellaDisponible] = useState(false);
   const [huellaMensaje, setHuellaMensaje] = useState<string | null>(null);
-  const [ofrecerActivarHuella, setOfrecerActivarHuella] = useState(false);
 
   const [paradas, setParadas] = useState<Parada[]>([]);
   const [buses, setBuses] = useState<Bus[]>([]);
@@ -181,14 +182,11 @@ export default function AdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rutaSeleccionadaId, modoSinRutas]);
 
-  const intentarDesbloquear = async () => {
+  const intentarDesbloquear = () => {
     if (claveInput === CLAVE_ADMIN) {
       localStorage.setItem("admin-clave", CLAVE_ADMIN);
       setDesbloqueado(true);
       setClaveError(false);
-      if (soportaHuellaOFace() && !(await existeHuella({ tipo: "admin" }))) {
-        setOfrecerActivarHuella(true);
-      }
     } else {
       setClaveError(true);
     }
@@ -210,7 +208,6 @@ export default function AdminPage() {
     const r = await registrarHuella({ tipo: "admin" }, "Panel de administrador");
     if (r.ok) {
       setHuellaDisponible(true);
-      setOfrecerActivarHuella(false);
     } else {
       setHuellaMensaje(r.error ?? "No se pudo activar.");
     }
@@ -793,7 +790,10 @@ export default function AdminPage() {
 
   if (!desbloqueado) {
     return (
-      <main className="min-h-screen bg-cream flex items-center justify-center px-6">
+      <main className="min-h-screen bg-cream flex items-center justify-center px-6 relative">
+        <div className="absolute top-6 right-6">
+          <TemaIcono />
+        </div>
         <div className="max-w-sm w-full">
           <p className="font-display text-2xl text-forest mb-4 text-center">Next Route — Panel de administrador</p>
           <input
@@ -828,36 +828,30 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-cream px-6 py-10">
       <div className="max-w-2xl mx-auto">
-        <Link href="/" className="text-xs text-forest/50 hover:text-forest transition">&larr; Next Route</Link>
-        <h1 className="font-display text-3xl text-forest mb-1 mt-2">Panel de administrador</h1>
-        <p className="text-sm text-forest/50 mb-6">
-          <span
-            onDoubleClick={() => setEntrarCompleto((v) => !v)}
-            style={{ touchAction: "manipulation" }}
-          >
-            Gestionando
-          </span>
-          : <span className="font-medium text-forest">{rutas.find((r) => r.id === rutaSeleccionadaId)?.nombre ?? (modoSinRutas ? "Ruta del Valle" : "—")}</span>
-        </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <Link href="/" className="text-xs text-forest/50 hover:text-forest transition">&larr; Next Route</Link>
+            <h1 className="font-display text-3xl text-forest mb-1 mt-2">Panel de administrador</h1>
+            <p className="text-sm text-forest/50 mb-6">
+              <span
+                onDoubleClick={() => setEntrarCompleto((v) => !v)}
+                style={{ touchAction: "manipulation" }}
+              >
+                Gestionando
+              </span>
+              : <span className="font-medium text-forest">{rutas.find((r) => r.id === rutaSeleccionadaId)?.nombre ?? (modoSinRutas ? "Ruta del Valle" : "—")}</span>
+            </p>
+          </div>
+          <Ajustes
+            huella={{ soportada: soportaHuellaOFace(), activa: huellaDisponible, onActivar: activarHuellaAdmin, mensaje: huellaMensaje }}
+          />
+        </div>
 
         {mensaje && (
           <div className="bg-teal/15 text-teal-dark text-sm rounded-lg px-4 py-2.5 mb-6 flex justify-between items-center">
             <span>{mensaje}</span>
             <button onClick={() => setMensaje(null)} className="text-teal-dark/60 hover:text-teal-dark ml-3">✕</button>
           </div>
-        )}
-
-        {ofrecerActivarHuella && (
-          <div className="bg-mustard/15 text-forest text-sm rounded-lg px-4 py-2.5 mb-6 flex justify-between items-center gap-3">
-            <span>¿Activar huella / Face ID para no escribir la clave la próxima vez?</span>
-            <div className="flex gap-2 shrink-0">
-              <button onClick={activarHuellaAdmin} className="text-xs font-medium px-3 py-1.5 rounded-full bg-forest text-white">Activar</button>
-              <button onClick={() => setOfrecerActivarHuella(false)} className="text-xs text-forest/50">Ahora no</button>
-            </div>
-          </div>
-        )}
-        {huellaMensaje && desbloqueado && (
-          <p className="text-xs text-terracotta mb-4">{huellaMensaje}</p>
         )}
 
         {!entrarCompleto && (
