@@ -795,14 +795,14 @@ export default function AdminPage() {
           <TemaIcono />
         </div>
         <div className="max-w-sm w-full">
-          <p className="font-display text-2xl text-forest mb-4 text-center">Next Route — Panel de administrador</p>
+          <p className="font-display text-2xl text-ink mb-4 text-center">Next Route — Panel de administrador</p>
           <input
             type="password"
             value={claveInput}
             onChange={(e) => { setClaveInput(e.target.value); setClaveError(false); }}
             onKeyDown={(e) => e.key === "Enter" && intentarDesbloquear()}
             placeholder="Clave"
-            className="w-full mb-2 text-sm text-forest bg-paper border border-forest/15 rounded-lg px-3 py-2"
+            className="w-full mb-2 text-sm text-ink bg-paper border border-forest/15 rounded-lg px-3 py-2"
           />
           {claveError && <p className="text-xs text-terracotta mb-2">Clave incorrecta.</p>}
           <button onClick={intentarDesbloquear} className="w-full py-2.5 rounded-full bg-forest text-white text-sm font-medium">
@@ -811,13 +811,13 @@ export default function AdminPage() {
           {huellaDisponible && (
             <button
               onClick={entrarConHuellaAdmin}
-              className="w-full mt-2 py-2.5 rounded-full border border-forest text-forest text-sm font-medium"
+              className="w-full mt-2 py-2.5 rounded-full border border-forest text-ink text-sm font-medium"
             >
               👆 Entrar con huella / Face ID
             </button>
           )}
           {huellaMensaje && <p className="text-xs text-terracotta mt-2">{huellaMensaje}</p>}
-          <Link href="/" className="block text-center text-xs text-forest/50 mt-4 hover:text-forest transition">
+          <Link href="/" className="block text-center text-xs text-ink/50 mt-4 hover:text-ink transition">
             &larr; Volver al inicio
           </Link>
         </div>
@@ -830,16 +830,16 @@ export default function AdminPage() {
       <div className="max-w-2xl mx-auto">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <Link href="/" className="text-xs text-forest/50 hover:text-forest transition">&larr; Next Route</Link>
-            <h1 className="font-display text-3xl text-forest mb-1 mt-2">Panel de administrador</h1>
-            <p className="text-sm text-forest/50 mb-6">
+            <Link href="/" className="text-xs text-ink/50 hover:text-ink transition">&larr; Next Route</Link>
+            <h1 className="font-display text-3xl text-ink mb-1 mt-2">Panel de administrador</h1>
+            <p className="text-sm text-ink/50 mb-6">
               <span
                 onDoubleClick={() => setEntrarCompleto((v) => !v)}
                 style={{ touchAction: "manipulation" }}
               >
                 Gestionando
               </span>
-              : <span className="font-medium text-forest">{rutas.find((r) => r.id === rutaSeleccionadaId)?.nombre ?? (modoSinRutas ? "Ruta del Valle" : "—")}</span>
+              : <span className="font-medium text-ink">{rutas.find((r) => r.id === rutaSeleccionadaId)?.nombre ?? (modoSinRutas ? "Ruta del Valle" : "—")}</span>
             </p>
           </div>
           <Ajustes
@@ -856,8 +856,8 @@ export default function AdminPage() {
 
         {!entrarCompleto && (
         <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
-          <h2 className="font-display text-lg text-forest mb-3">Rutas</h2>
-          <p className="text-xs text-forest/50 mb-3">Toca una ruta para gestionarla (paradas, unidades y claves de abajo aplican a la que esté seleccionada).</p>
+          <h2 className="font-display text-lg text-ink mb-3">Rutas</h2>
+          <p className="text-xs text-ink/50 mb-3">Toca una ruta para gestionarla (paradas, unidades y claves de abajo aplican a la que esté seleccionada).</p>
           <div className="space-y-2 mb-4">
             {rutas.map((r) =>
               editandoRutaId === r.id ? (
@@ -874,7 +874,7 @@ export default function AdminPage() {
                     placeholder="Descripción corta (opcional)"
                     className="w-full text-sm border border-forest/15 rounded-lg px-3 py-1.5"
                   />
-                  <label className="flex items-center gap-1.5 text-xs text-forest/60">
+                  <label className="flex items-center gap-1.5 text-xs text-ink/60">
                     <input
                       type="checkbox"
                       checked={editRuta.activa}
@@ -886,7 +886,7 @@ export default function AdminPage() {
                     <button onClick={() => guardarEdicionRuta(r.id)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full bg-forest text-white">
                       Guardar
                     </button>
-                    <button onClick={() => setEditandoRutaId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-forest">
+                    <button onClick={() => setEditandoRutaId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-ink">
                       Cancelar
                     </button>
                   </div>
@@ -896,7 +896,7 @@ export default function AdminPage() {
                       <button onClick={() => eliminarRuta(r.id)} className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full bg-red-600 text-white">
                         Sí, eliminar
                       </button>
-                      <button onClick={() => setConfirmandoEliminarRutaId(null)} className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-forest">
+                      <button onClick={() => setConfirmandoEliminarRutaId(null)} className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-ink">
                         Cancelar
                       </button>
                     </div>
@@ -917,12 +917,12 @@ export default function AdminPage() {
                   }`}
                 >
                   <button onClick={() => setRutaSeleccionadaId(r.id)} className="text-left flex-1 min-w-0">
-                    <span className="text-forest font-medium">{r.nombre}</span>
-                    {!r.activa && <span className="ml-2 text-xs text-forest/40">Próximamente</span>}
+                    <span className="text-ink font-medium">{r.nombre}</span>
+                    {!r.activa && <span className="ml-2 text-xs text-ink/40">Próximamente</span>}
                   </button>
                   <button
                     onClick={() => iniciarEdicionRuta(r)}
-                    className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-forest hover:bg-forest/5 transition"
+                    className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-ink hover:bg-forest/5 transition"
                   >
                     editar
                   </button>
@@ -953,8 +953,8 @@ export default function AdminPage() {
         {(rutaSeleccionadaId || modoSinRutas) && (
         <>
         <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
-          <h2 className="font-display text-lg text-forest mb-3">Agregar parada</h2>
-          <p className="text-xs text-forest/50 mb-3">
+          <h2 className="font-display text-lg text-ink mb-3">Agregar parada</h2>
+          <p className="text-xs text-ink/50 mb-3">
             Párate en el sitio físico antes de agregarla — se captura tu ubicación GPS automáticamente.
             Si no hay buena señal, escribe la coordenada manual abajo (opcional).
           </p>
@@ -1002,8 +1002,8 @@ export default function AdminPage() {
           const listaCompleta = [...enOrden, ...soloSubida, ...sinNada];
           return (
         <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
-          <h2 className="font-display text-lg text-forest mb-1">Paradas ({paradas.length})</h2>
-          <p className="text-xs text-forest/50 mb-3">
+          <h2 className="font-display text-lg text-ink mb-1">Paradas ({paradas.length})</h2>
+          <p className="text-xs text-ink/50 mb-3">
             Arrastra ☰ en el orden real en que se camina bajando (Hotel → Av. 19) — la subida se acomoda sola, al revés.
             Toca ↑ sube / ↓ baja para marcar en qué sentido va cada parada.
           </p>
@@ -1039,7 +1039,7 @@ export default function AdminPage() {
                     <button onClick={() => guardarEdicionParada(p.id)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full bg-forest text-white">
                       Guardar
                     </button>
-                    <button onClick={() => setEditandoParadaId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-forest">
+                    <button onClick={() => setEditandoParadaId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-ink">
                       Cancelar
                     </button>
                   </div>
@@ -1048,7 +1048,7 @@ export default function AdminPage() {
                       <button onClick={() => eliminarParada(p.id)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full bg-terracotta text-white">
                         Sí, eliminar
                       </button>
-                      <button onClick={() => setConfirmandoEliminarId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-forest">
+                      <button onClick={() => setConfirmandoEliminarId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-ink">
                         No
                       </button>
                     </div>
@@ -1073,28 +1073,28 @@ export default function AdminPage() {
                         <button
                           onPointerDown={(e) => iniciarArrastre(e, "orden_vuelta", p.id, e.currentTarget.closest("[data-row]") as HTMLElement)}
                           style={{ touchAction: "none" }}
-                          className="shrink-0 w-7 h-7 rounded-full text-forest/50 cursor-grab active:cursor-grabbing select-none"
+                          className="shrink-0 w-7 h-7 rounded-full text-ink/50 cursor-grab active:cursor-grabbing select-none"
                         >
                           ☰
                         </button>
-                        <span className="text-forest/40 text-xs w-5 shrink-0">{i + 1}.</span>
+                        <span className="text-ink/40 text-xs w-5 shrink-0">{i + 1}.</span>
                       </>
                     ) : p.orden !== null ? (
                       <>
                         <button
                           onPointerDown={(e) => iniciarArrastre(e, "orden", p.id, e.currentTarget.closest("[data-row]") as HTMLElement)}
                           style={{ touchAction: "none" }}
-                          className="shrink-0 w-7 h-7 rounded-full text-forest/50 cursor-grab active:cursor-grabbing select-none"
+                          className="shrink-0 w-7 h-7 rounded-full text-ink/50 cursor-grab active:cursor-grabbing select-none"
                         >
                           ☰
                         </button>
-                        <span className="text-forest/40 text-xs w-5 shrink-0">{soloSubida.findIndex((x) => x.id === p.id) + 1}.</span>
+                        <span className="text-ink/40 text-xs w-5 shrink-0">{soloSubida.findIndex((x) => x.id === p.id) + 1}.</span>
                       </>
                     ) : (
                       <span className="w-7 shrink-0" />
                     )}
                     <button onClick={() => iniciarEdicionParada(p)} className="text-left flex-1 min-w-0">
-                      <p className="text-forest font-medium hover:underline">{p.nombre}</p>
+                      <p className="text-ink font-medium hover:underline">{p.nombre}</p>
                     </button>
                     <button
                       onClick={() => fijarUbicacionAqui(p.id)}
@@ -1105,13 +1105,13 @@ export default function AdminPage() {
                     </button>
                   </div>
                   <div className="flex items-center flex-wrap gap-1.5 pl-9">
-                    <span className="text-forest/40 text-xs">
+                    <span className="text-ink/40 text-xs">
                       {p.latitud !== null ? `${p.latitud.toFixed(5)}, ${p.longitud?.toFixed(5)}` : "sin ubicar"}
                     </span>
                     <button
                       onClick={() => alternarSube(p.id)}
                       className={`text-xs font-medium px-2 py-0.5 rounded-full border transition ${
-                        p.orden !== null ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-forest/40"
+                        p.orden !== null ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-ink/40"
                       }`}
                     >
                       ↑ sube{p.orden !== null ? ` (${p.orden})` : ""}
@@ -1119,7 +1119,7 @@ export default function AdminPage() {
                     <button
                       onClick={() => alternarBaja(p.id)}
                       className={`text-xs font-medium px-2 py-0.5 rounded-full border transition ${
-                        p.orden_vuelta !== null ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-forest/40"
+                        p.orden_vuelta !== null ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-ink/40"
                       }`}
                     >
                       ↓ baja{p.orden_vuelta !== null ? ` (${p.orden_vuelta})` : ""}
@@ -1134,7 +1134,7 @@ export default function AdminPage() {
         })()}
 
         <section className="bg-paper border border-forest/10 rounded-2xl p-5 mb-6">
-          <h2 className="font-display text-lg text-forest mb-3">Agregar unidad</h2>
+          <h2 className="font-display text-lg text-ink mb-3">Agregar unidad</h2>
           <div className="grid grid-cols-2 gap-2 mb-3">
             <input
               value={nuevoBus.nombre}
@@ -1156,7 +1156,7 @@ export default function AdminPage() {
         </section>
 
         <section className="bg-paper border border-forest/10 rounded-2xl p-5">
-          <h2 className="font-display text-lg text-forest mb-3">Unidades ({buses.length})</h2>
+          <h2 className="font-display text-lg text-ink mb-3">Unidades ({buses.length})</h2>
           <div className="space-y-2">
             {buses.map((b) =>
               editandoBusId === b.id ? (
@@ -1180,16 +1180,16 @@ export default function AdminPage() {
                     <button onClick={() => guardarEdicionBus(b.id)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full bg-forest text-white">
                       Guardar
                     </button>
-                    <button onClick={() => setEditandoBusId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-forest">
+                    <button onClick={() => setEditandoBusId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-ink">
                       Cancelar
                     </button>
                   </div>
                   <div className="pt-2 border-t border-forest/10">
-                    <p className="text-xs text-forest/50 mb-1.5">Clave para el piloto de esta unidad:</p>
+                    <p className="text-xs text-ink/50 mb-1.5">Clave para el piloto de esta unidad:</p>
                     <div className="flex items-center gap-1.5 mb-1.5">
                       <span
                         className={`text-xs font-medium px-2 py-0.5 rounded-full border shrink-0 ${
-                          b.clave_fija || b.clave_fecha === hoy() ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-forest/40"
+                          b.clave_fija || b.clave_fecha === hoy() ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-ink/40"
                         }`}
                       >
                         {b.clave_fija ? "Fija ✓" : b.clave_fecha === hoy() ? "Hoy ✓" : "Sin asignar"}
@@ -1203,7 +1203,7 @@ export default function AdminPage() {
                       <button
                         onClick={() => setClaveBusInput((prev) => ({ ...prev, [b.id]: generarClaveAleatoria() }))}
                         title="Generar clave aleatoria"
-                        className="shrink-0 text-xs px-2 py-1 rounded-lg border border-forest/20 text-forest hover:bg-forest/5 transition"
+                        className="shrink-0 text-xs px-2 py-1 rounded-lg border border-forest/20 text-ink hover:bg-forest/5 transition"
                       >
                         🎲
                       </button>
@@ -1214,7 +1214,7 @@ export default function AdminPage() {
                         Asignar
                       </button>
                     </div>
-                    <label className="flex items-center gap-1.5 text-xs text-forest/60">
+                    <label className="flex items-center gap-1.5 text-xs text-ink/60">
                       <input
                         type="checkbox"
                         checked={claveBusFija[b.id] ?? b.clave_fija}
@@ -1228,7 +1228,7 @@ export default function AdminPage() {
                       <button onClick={() => eliminarBus(b.id)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full bg-terracotta text-white">
                         Sí, eliminar
                       </button>
-                      <button onClick={() => setConfirmandoEliminarBusId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-forest">
+                      <button onClick={() => setConfirmandoEliminarBusId(null)} className="flex-1 text-xs font-medium px-3 py-1.5 rounded-full border border-forest/20 text-ink">
                         No
                       </button>
                     </div>
@@ -1247,16 +1247,16 @@ export default function AdminPage() {
                   onClick={() => iniciarEdicionBus(b)}
                   className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-cream rounded-lg text-sm hover:bg-forest/5 transition text-left"
                 >
-                  <span className="text-forest">{b.nombre}</span>
+                  <span className="text-ink">{b.nombre}</span>
                   <span className="flex items-center gap-1.5 shrink-0">
                     <span
                       className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                        b.clave_fija || b.clave_fecha === hoy() ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-forest/40"
+                        b.clave_fija || b.clave_fecha === hoy() ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-ink/40"
                       }`}
                     >
                       {b.clave_fija ? "Clave fija" : b.clave_fecha === hoy() ? "Clave hoy" : "Sin clave"}
                     </span>
-                    <span className="text-forest/50 text-xs">{b.capacidad_total} puestos · editar</span>
+                    <span className="text-ink/50 text-xs">{b.capacidad_total} puestos · editar</span>
                   </span>
                 </button>
               )
@@ -1265,14 +1265,14 @@ export default function AdminPage() {
         </section>
 
         <section className="bg-paper border border-forest/10 rounded-2xl p-5 mt-6">
-          <h2 className="font-display text-lg text-forest mb-1">Clave del coordinador</h2>
-          <p className="text-xs text-forest/50 mb-3">
+          <h2 className="font-display text-lg text-ink mb-1">Clave del coordinador</h2>
+          <p className="text-xs text-ink/50 mb-3">
             Por defecto vence cada día. Marca &quot;sin vencimiento&quot; si prefieres que dure hasta que tú la cambies.
           </p>
           <div className="flex items-center gap-1.5 mb-1.5">
             <span
               className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-                claveCoordDia.fija || claveCoordDia.fecha === hoy() ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-forest/40"
+                claveCoordDia.fija || claveCoordDia.fecha === hoy() ? "border-teal text-teal-dark bg-teal/10" : "border-forest/20 text-ink/40"
               }`}
             >
               {claveCoordDia.fija ? `Fija: ${claveCoordDia.clave}` : claveCoordDia.fecha === hoy() ? `Hoy: ${claveCoordDia.clave}` : "Sin clave"}
@@ -1286,7 +1286,7 @@ export default function AdminPage() {
             <button
               onClick={() => setClaveCoordInput(generarClaveAleatoria())}
               title="Generar clave aleatoria"
-              className="shrink-0 text-xs px-2 py-1 rounded-lg border border-forest/20 text-forest hover:bg-forest/5 transition"
+              className="shrink-0 text-xs px-2 py-1 rounded-lg border border-forest/20 text-ink hover:bg-forest/5 transition"
             >
               🎲
             </button>
@@ -1297,7 +1297,7 @@ export default function AdminPage() {
               Asignar
             </button>
           </div>
-          <label className="flex items-center gap-1.5 text-xs text-forest/60">
+          <label className="flex items-center gap-1.5 text-xs text-ink/60">
             <input
               type="checkbox"
               checked={claveCoordFijaInput || claveCoordDia.fija}

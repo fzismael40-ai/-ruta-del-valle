@@ -781,7 +781,7 @@ export default function RutaApp({ slug }: { slug: string }) {
     return (
       <main className="min-h-screen bg-cream flex items-center justify-center px-6 text-center">
         <div>
-          <p className="font-display text-2xl text-forest mb-3">Ruta no encontrada</p>
+          <p className="font-display text-2xl text-ink mb-3">Ruta no encontrada</p>
           <Link href="/" className="text-sm text-terracotta hover:underline">Volver al inicio</Link>
         </div>
       </main>
@@ -791,7 +791,7 @@ export default function RutaApp({ slug }: { slug: string }) {
   if (ruta === null) {
     return (
       <main className="min-h-screen bg-cream flex items-center justify-center px-6 text-center">
-        <p className="text-sm text-forest/50">Cargando ruta...</p>
+        <p className="text-sm text-ink/50">Cargando ruta...</p>
       </main>
     );
   }
@@ -804,15 +804,15 @@ export default function RutaApp({ slug }: { slug: string }) {
             <button
               onDoubleClick={() => router.push("/admin?full=1")}
               style={{ touchAction: "manipulation" }}
-              className="font-display font-semibold text-lg text-forest select-none"
+              className="font-display font-semibold text-lg text-ink select-none"
             >
               Next Route
             </button>
           </div>
           {!esAppInstalada && (
             <nav className="hidden sm:flex items-center gap-6">
-              <a href="#como-funciona" className="text-sm text-forest/70 hover:text-forest transition">Cómo funciona</a>
-              <a href="#embarca" className="text-sm text-forest/70 hover:text-forest transition">En vivo</a>
+              <a href="#como-funciona" className="text-sm text-ink/70 hover:text-ink transition">Cómo funciona</a>
+              <a href="#embarca" className="text-sm text-ink/70 hover:text-ink transition">En vivo</a>
             </nav>
           )}
           <div className="flex flex-col items-end gap-1">
@@ -821,7 +821,7 @@ export default function RutaApp({ slug }: { slug: string }) {
               {mostrarBotonInstalar && (
                 <button
                   onClick={descargarApp}
-                  className="text-sm font-medium px-4 py-2 rounded-full border border-forest text-forest hover:bg-forest/5 transition"
+                  className="text-sm font-medium px-4 py-2 rounded-full border border-forest text-ink hover:bg-forest/5 transition"
                 >
                   ⬇ Descargar
                 </button>
@@ -831,7 +831,7 @@ export default function RutaApp({ slug }: { slug: string }) {
               )}
             </div>
             {mostrarBotonInstalar && (
-              <span className="text-xs text-forest/40">🗺️ Más rutas en camino</span>
+              <span className="text-xs text-ink/40">🗺️ Más rutas en camino</span>
             )}
           </div>
         </div>
@@ -859,10 +859,10 @@ export default function RutaApp({ slug }: { slug: string }) {
           <span className="inline-block text-xs font-semibold tracking-widest uppercase text-terracotta bg-terracotta/10 px-3 py-1 rounded-full mb-6">
             Ruta del Valle · El Playón, Mérida
           </span>
-          <h1 className="font-display text-4xl sm:text-5xl text-forest leading-tight mb-6">
+          <h1 className="font-display text-4xl sm:text-5xl text-ink leading-tight mb-6">
             El problema no es subir. Es que el bus <span className="text-terracotta">se llena a medio camino</span>.
           </h1>
-          <p className="text-forest/70 text-lg mb-10 max-w-xl mx-auto">
+          <p className="text-ink/70 text-lg mb-10 max-w-xl mx-auto">
             Cada unidad sale casi vacía desde Hotel Valle Grande —a veces con un grupo moderado del hotel que
             baja a trabajar o estudiar— pero se llena rápido en el camino, dejando sin cupo a los vecinos de
             las paradas más abajo en El Playón. Ruta del Valle muestra en tiempo real dónde va cada bus, para
@@ -873,26 +873,26 @@ export default function RutaApp({ slug }: { slug: string }) {
             <a href="#embarca" className="text-sm font-medium px-6 py-3 rounded-full bg-forest text-white hover:bg-forest-dark transition">
               Ver la app en vivo
             </a>
-            <a href="#como-funciona" className="text-sm font-medium px-6 py-3 rounded-full border border-forest/20 text-forest hover:bg-forest/5 transition">
+            <a href="#como-funciona" className="text-sm font-medium px-6 py-3 rounded-full border border-forest/20 text-ink hover:bg-forest/5 transition">
               Cómo funciona
             </a>
           </div>
 
           <div className="grid grid-cols-3 gap-3 max-w-lg mx-auto">
             <div className="bg-paper border border-forest/10 rounded-2xl px-3 py-4 shadow-sm">
-              <p className="font-display text-2xl text-forest">{paradas.length || "—"}</p>
-              <p className="text-xs text-forest/50 mt-1">paradas en la ruta</p>
+              <p className="font-display text-2xl text-ink">{paradas.length || "—"}</p>
+              <p className="text-xs text-ink/50 mt-1">paradas en la ruta</p>
             </div>
             <div className="bg-paper border border-forest/10 rounded-2xl px-3 py-4 shadow-sm">
-              <p className="font-display text-2xl text-forest">{busesActivos.length || "—"}</p>
-              <p className="text-xs text-forest/50 mt-1">buses activos</p>
+              <p className="font-display text-2xl text-ink">{busesActivos.length || "—"}</p>
+              <p className="text-xs text-ink/50 mt-1">buses activos</p>
             </div>
             <div className="bg-paper border border-teal/20 rounded-2xl px-3 py-4 shadow-sm">
               <p className="font-display text-2xl text-teal-dark flex items-center justify-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-teal animate-pulse"></span>
                 En vivo
               </p>
-              <p className="text-xs text-forest/50 mt-1">datos en tiempo real</p>
+              <p className="text-xs text-ink/50 mt-1">datos en tiempo real</p>
             </div>
           </div>
         </div>
@@ -902,8 +902,8 @@ export default function RutaApp({ slug }: { slug: string }) {
         <div className="max-w-6xl mx-auto px-6">
           <div className="max-w-xl mx-auto text-center mb-14">
             <p className="text-terracotta text-xs font-semibold tracking-widest uppercase mb-3">Cómo funciona</p>
-            <h2 className="font-display text-3xl text-forest mb-4">Un mismo dato, tres roles</h2>
-            <p className="text-forest/60">
+            <h2 className="font-display text-3xl text-ink mb-4">Un mismo dato, tres roles</h2>
+            <p className="text-ink/60">
               La bajada —de Hotel Valle Grande a Av. 19— es el tramo crítico: cada unidad sale casi vacía
               pero se llena rápido, y son los vecinos de las paradas más abajo en El Playón quienes se quedan
               esperando. La subida sirve sobre todo a profesores,
@@ -920,8 +920,8 @@ export default function RutaApp({ slug }: { slug: string }) {
                   <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
                 </svg>
               </div>
-              <h3 className="font-display text-lg text-forest mb-2">Pasajero</h3>
-              <p className="text-sm text-forest/60">Antes de salir, revisa si tu bus ya viene lleno desde arriba o si todavía tiene cupo, y en qué parada va.</p>
+              <h3 className="font-display text-lg text-ink mb-2">Pasajero</h3>
+              <p className="text-sm text-ink/60">Antes de salir, revisa si tu bus ya viene lleno desde arriba o si todavía tiene cupo, y en qué parada va.</p>
             </div>
 
             <div className="feature-card bg-cream rounded-2xl p-6 border border-forest/10">
@@ -931,8 +931,8 @@ export default function RutaApp({ slug }: { slug: string }) {
                   <path d="M12 4v4M12 16v4M4 12h4M16 12h4" />
                 </svg>
               </div>
-              <h3 className="font-display text-lg text-forest mb-2">Piloto</h3>
-              <p className="text-sm text-forest/60">Con dos botones registra quién sube y baja, y avisa cuando el bus se llena.</p>
+              <h3 className="font-display text-lg text-ink mb-2">Piloto</h3>
+              <p className="text-sm text-ink/60">Con dos botones registra quién sube y baja, y avisa cuando el bus se llena.</p>
             </div>
 
             <div className="feature-card bg-cream rounded-2xl p-6 border border-forest/10">
@@ -942,8 +942,8 @@ export default function RutaApp({ slug }: { slug: string }) {
                   <circle cx="12" cy="9.5" r="2.3" />
                 </svg>
               </div>
-              <h3 className="font-display text-lg text-forest mb-2">Coordinador</h3>
-              <p className="text-sm text-forest/60">Ve cada salida desde Hotel Valle Grande, cuánto lleva esperando refuerzo, y despacha una unidad extra a tiempo.</p>
+              <h3 className="font-display text-lg text-ink mb-2">Coordinador</h3>
+              <p className="text-sm text-ink/60">Ve cada salida desde Hotel Valle Grande, cuánto lleva esperando refuerzo, y despacha una unidad extra a tiempo.</p>
             </div>
           </div>
         </div>
@@ -974,14 +974,14 @@ export default function RutaApp({ slug }: { slug: string }) {
                   <select
                     value={miBus?.id ?? ""}
                     onChange={(e) => setBusSeleccionadoId(e.target.value)}
-                    className="w-full mb-3 text-xs font-medium text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
+                    className="w-full mb-3 text-xs font-medium text-ink bg-cream border border-forest/15 rounded-lg px-3 py-2"
                   >
                     {busesActivos.map((b) => (
                       <option key={b.id} value={b.id}>{b.nombre}</option>
                     ))}
                   </select>
                 )}
-                <p className="text-xs text-forest/50 mb-2">
+                <p className="text-xs text-ink/50 mb-2">
                   Parada: {miBus?.parada_actual ?? "..."} · {miBus?.sentido === "vuelta" ? "Bajando hacia Av. 19" : "Subiendo hacia el Valle"}
                 </p>
                 {(() => {
@@ -994,10 +994,10 @@ export default function RutaApp({ slug }: { slug: string }) {
                   );
                 })()}
                 {busesActivos.length === 0 ? (
-                  <p className="text-sm text-forest/50">Ninguna unidad en línea ahora mismo.</p>
+                  <p className="text-sm text-ink/50">Ninguna unidad en línea ahora mismo.</p>
                 ) : miBus ? (
                   <>
-                    <p className="font-display text-xl text-forest mb-1">{miBus.nombre}: {miBus.ocupacion_actual}/{miBus.capacidad_total} cupos</p>
+                    <p className="font-display text-xl text-ink mb-1">{miBus.nombre}: {miBus.ocupacion_actual}/{miBus.capacidad_total} cupos</p>
                     {(() => {
                       const e = estiloOcupacion(miBus.ocupacion_actual, miBus.capacidad_total);
                       return (
@@ -1008,7 +1008,7 @@ export default function RutaApp({ slug }: { slug: string }) {
                       );
                     })()}
                   </>
-                ) : <p className="text-sm text-forest/50">Cargando...</p>}
+                ) : <p className="text-sm text-ink/50">Cargando...</p>}
               </div>
 
               <div className={`view ${role==="piloto" ? "active" : ""}`}>
@@ -1016,7 +1016,7 @@ export default function RutaApp({ slug }: { slug: string }) {
                   <select
                     value={miBus?.id ?? ""}
                     onChange={(e) => { setBusSeleccionadoId(e.target.value); setClaveBusInput(""); setClaveBusError(false); }}
-                    className="w-full mb-3 text-xs font-medium text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
+                    className="w-full mb-3 text-xs font-medium text-ink bg-cream border border-forest/15 rounded-lg px-3 py-2"
                   >
                     {buses.map((b) => (
                       <option key={b.id} value={b.id}>{b.nombre}</option>
@@ -1024,23 +1024,23 @@ export default function RutaApp({ slug }: { slug: string }) {
                   </select>
                 )}
                 {!miBus ? (
-                  <p className="text-sm text-forest/50">Cargando...</p>
+                  <p className="text-sm text-ink/50">Cargando...</p>
                 ) : !miBusDesbloqueado ? (
                   <div className="py-2">
                     {miBus.clave_actual === null || (!miBus.clave_fija && miBus.clave_fecha !== hoy()) ? (
-                      <p className="text-sm text-forest/60">
+                      <p className="text-sm text-ink/60">
                         Todavía no hay clave asignada hoy para {miBus.nombre}. Pídesela al coordinador o al admin.
                       </p>
                     ) : (
                       <>
-                        <p className="text-sm text-forest/60 mb-3">Clave de hoy para {miBus.nombre}:</p>
+                        <p className="text-sm text-ink/60 mb-3">Clave de hoy para {miBus.nombre}:</p>
                         <input
                           type="password"
                           value={claveBusInput}
                           onChange={(e) => { setClaveBusInput(e.target.value); setClaveBusError(false); }}
                           onKeyDown={(e) => e.key === "Enter" && intentarDesbloquearBus(miBus)}
                           placeholder="Clave"
-                          className="w-full mb-2 text-sm text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
+                          className="w-full mb-2 text-sm text-ink bg-cream border border-forest/15 rounded-lg px-3 py-2"
                         />
                         {claveBusError && <p className="text-xs text-terracotta mb-2">Clave incorrecta.</p>}
                         <button onClick={() => intentarDesbloquearBus(miBus)} className="w-full py-2.5 rounded-full bg-forest text-white text-sm font-medium">
@@ -1049,7 +1049,7 @@ export default function RutaApp({ slug }: { slug: string }) {
                         {huellaBusDisponible && (
                           <button
                             onClick={() => entrarConHuellaBus(miBus)}
-                            className="w-full mt-2 py-2.5 rounded-full border border-forest text-forest text-sm font-medium"
+                            className="w-full mt-2 py-2.5 rounded-full border border-forest text-ink text-sm font-medium"
                           >
                             👆 Entrar con huella / Face ID
                           </button>
@@ -1061,17 +1061,17 @@ export default function RutaApp({ slug }: { slug: string }) {
                 ) : (
                   <>
                     {ofrecerActivarHuellaBus && miBus && (
-                      <div className="bg-mustard/15 text-forest text-xs rounded-lg px-3 py-2.5 mb-3 flex items-center justify-between gap-2">
+                      <div className="bg-mustard/15 text-ink text-xs rounded-lg px-3 py-2.5 mb-3 flex items-center justify-between gap-2">
                         <span>¿Activar huella / Face ID para {miBus.nombre}?</span>
                         <div className="flex gap-2 shrink-0">
                           <button onClick={() => activarHuellaBus(miBus)} className="font-medium px-2.5 py-1 rounded-full bg-forest text-white">Activar</button>
-                          <button onClick={() => setOfrecerActivarHuellaBus(false)} className="text-forest/50">Ahora no</button>
+                          <button onClick={() => setOfrecerActivarHuellaBus(false)} className="text-ink/50">Ahora no</button>
                         </div>
                       </div>
                     )}
                     <div className="flex items-center gap-2 mb-2">
                       <span className={`w-2 h-2 rounded-full ${ubicacionActiva ? "bg-teal" : "bg-forest/25"}`}></span>
-                      <span className="text-xs text-forest/50">
+                      <span className="text-xs text-ink/50">
                         {ubicacionActiva
                           ? "Ubicación GPS activa"
                           : ubicacionError
@@ -1079,21 +1079,21 @@ export default function RutaApp({ slug }: { slug: string }) {
                           : "Activando GPS..."}
                       </span>
                     </div>
-                    <p className="text-xs text-forest/50 mb-2">
+                    <p className="text-xs text-ink/50 mb-2">
                       {esVuelta ? "Bajando" : "Subiendo"} · Parada: {miBus?.parada_actual ?? "..."} ({miBus?.parada_orden ?? 1}/{totalParadas})
                     </p>
                     <div className="flex items-baseline gap-2 mb-3">
-                      <span className="font-display text-4xl text-forest">{miBus?.ocupacion_actual ?? 0}</span>
-                      <span className="text-sm text-forest/60">/ {miBus?.capacidad_total ?? 30} pasajeros</span>
+                      <span className="font-display text-4xl text-ink">{miBus?.ocupacion_actual ?? 0}</span>
+                      <span className="text-sm text-ink/60">/ {miBus?.capacidad_total ?? 30} pasajeros</span>
                     </div>
-                    <div className="h-2 bg-cream rounded-full overflow-hidden mb-4">
+                    <div className="h-2 bg-paper rounded-full overflow-hidden mb-4">
                       <div
                         className={`h-full transition-colors ${miBus ? estiloOcupacion(miBus.ocupacion_actual, miBus.capacidad_total).barra : "bg-teal"}`}
                         style={{width: `${miBus ? (miBus.ocupacion_actual/miBus.capacidad_total)*100 : 0}%`}}
                       ></div>
                     </div>
                     <div className="flex gap-3 mb-3">
-                      <button onClick={() => bump(-1)} className="flex-1 py-2.5 rounded-full border border-forest/30 text-forest text-sm font-medium">− Bajó</button>
+                      <button onClick={() => bump(-1)} className="flex-1 py-2.5 rounded-full border border-forest/30 text-ink text-sm font-medium">− Bajó</button>
                       <button onClick={() => bump(1)} className="flex-1 py-2.5 rounded-full bg-forest text-white text-sm font-medium">+ Subió</button>
                     </div>
                     <button onClick={avanzarParada} className="w-full py-2.5 rounded-full bg-terracotta text-white text-sm font-medium">
@@ -1104,7 +1104,7 @@ export default function RutaApp({ slug }: { slug: string }) {
                       className={`w-full mt-2 py-2 rounded-full border text-xs font-medium transition ${
                         miBus?.activo === false
                           ? "border-teal text-teal-dark hover:bg-teal/10"
-                          : "border-forest/20 text-forest/60 hover:bg-forest/5"
+                          : "border-forest/20 text-ink/60 hover:bg-forest/5"
                       }`}
                     >
                       {miBus?.activo === false ? "↩ Reincorporarme a la línea" : "Salir de la línea (fin de turno)"}
@@ -1122,17 +1122,17 @@ export default function RutaApp({ slug }: { slug: string }) {
                 {!coordinadorDesbloqueado ? (
                   <div className="py-2">
                     {claveDiaCoordinador.clave === null || (!claveDiaCoordinador.fija && claveDiaCoordinador.fecha !== hoy()) ? (
-                      <p className="text-sm text-forest/60">Todavía no hay clave asignada hoy para coordinador. Pídesela al admin.</p>
+                      <p className="text-sm text-ink/60">Todavía no hay clave asignada hoy para coordinador. Pídesela al admin.</p>
                     ) : (
                       <>
-                        <p className="text-sm text-forest/60 mb-3">Acceso solo para coordinadores. Ingresa la clave:</p>
+                        <p className="text-sm text-ink/60 mb-3">Acceso solo para coordinadores. Ingresa la clave:</p>
                         <input
                           type="password"
                           value={claveCoordInput}
                           onChange={(e) => { setClaveCoordInput(e.target.value); setClaveCoordError(false); }}
                           onKeyDown={(e) => e.key === "Enter" && intentarDesbloquearCoordinador()}
                           placeholder="Clave"
-                          className="w-full mb-2 text-sm text-forest bg-cream border border-forest/15 rounded-lg px-3 py-2"
+                          className="w-full mb-2 text-sm text-ink bg-cream border border-forest/15 rounded-lg px-3 py-2"
                         />
                         {claveCoordError && <p className="text-xs text-terracotta mb-2">Clave incorrecta.</p>}
                         <button onClick={intentarDesbloquearCoordinador} className="w-full py-2.5 rounded-full bg-forest text-white text-sm font-medium">
@@ -1141,7 +1141,7 @@ export default function RutaApp({ slug }: { slug: string }) {
                         {huellaCoordDisponible && (
                           <button
                             onClick={entrarConHuellaCoord}
-                            className="w-full mt-2 py-2.5 rounded-full border border-forest text-forest text-sm font-medium"
+                            className="w-full mt-2 py-2.5 rounded-full border border-forest text-ink text-sm font-medium"
                           >
                             👆 Entrar con huella / Face ID
                           </button>
@@ -1153,11 +1153,11 @@ export default function RutaApp({ slug }: { slug: string }) {
                 ) : (
                   <>
                 {ofrecerActivarHuellaCoord && (
-                  <div className="bg-mustard/15 text-forest text-xs rounded-lg px-3 py-2.5 mb-3 flex items-center justify-between gap-2">
+                  <div className="bg-mustard/15 text-ink text-xs rounded-lg px-3 py-2.5 mb-3 flex items-center justify-between gap-2">
                     <span>¿Activar huella / Face ID para coordinador?</span>
                     <div className="flex gap-2 shrink-0">
                       <button onClick={activarHuellaCoord} className="font-medium px-2.5 py-1 rounded-full bg-forest text-white">Activar</button>
-                      <button onClick={() => setOfrecerActivarHuellaCoord(false)} className="text-forest/50">Ahora no</button>
+                      <button onClick={() => setOfrecerActivarHuellaCoord(false)} className="text-ink/50">Ahora no</button>
                     </div>
                   </div>
                 )}
@@ -1165,19 +1165,19 @@ export default function RutaApp({ slug }: { slug: string }) {
                   <div className="bg-mustard/15 rounded-lg px-3 py-2.5 mb-3">
                     <p className="text-xs text-mustard-dark font-medium mb-1">Demanda estimada (últimos 30 min, por check-in QR)</p>
                     {demanda.ida > 0 && (
-                      <p className="text-xs text-forest/70">↑ Subiendo: {demanda.ida} esperando · manda {recomendarUnidad(demanda.ida)}</p>
+                      <p className="text-xs text-ink/70">↑ Subiendo: {demanda.ida} esperando · manda {recomendarUnidad(demanda.ida)}</p>
                     )}
                     {demanda.vuelta > 0 && (
-                      <p className="text-xs text-forest/70">↓ Bajando: {demanda.vuelta} esperando · manda {recomendarUnidad(demanda.vuelta)}</p>
+                      <p className="text-xs text-ink/70">↓ Bajando: {demanda.vuelta} esperando · manda {recomendarUnidad(demanda.vuelta)}</p>
                     )}
                   </div>
                 )}
-                <p className="text-xs text-forest/50 mb-3">↑ Subiendo hacia El Valle</p>
+                <p className="text-xs text-ink/50 mb-3">↑ Subiendo hacia El Valle</p>
                 {busesActivos.filter((b) => b.sentido === "ida").map((bus) => {
                   const pct = Math.round((bus.ocupacion_actual / bus.capacidad_total) * 100);
                   return (
                     <div key={bus.id} className="flex justify-between items-center px-3 py-2.5 bg-cream rounded-lg mb-2">
-                      <span className="text-sm text-forest">{bus.nombre} — {bus.parada_actual}</span>
+                      <span className="text-sm text-ink">{bus.nombre} — {bus.parada_actual}</span>
                       <span className={`text-xs px-2 py-0.5 rounded font-medium ${estiloOcupacion(bus.ocupacion_actual, bus.capacidad_total).chip}`}>
                         {pct}%
                       </span>
@@ -1185,15 +1185,15 @@ export default function RutaApp({ slug }: { slug: string }) {
                   );
                 })}
                 {busesActivos.filter((b) => b.sentido === "ida").length === 0 && (
-                  <p className="text-xs text-forest/40 mb-3">Ningún bus subiendo ahora</p>
+                  <p className="text-xs text-ink/40 mb-3">Ningún bus subiendo ahora</p>
                 )}
 
-                <p className="text-xs text-forest/50 mb-3 mt-4">↓ Bajando hacia Av. 19</p>
+                <p className="text-xs text-ink/50 mb-3 mt-4">↓ Bajando hacia Av. 19</p>
                 {busesActivos.filter((b) => b.sentido === "vuelta").map((bus) => {
                   const pct = Math.round((bus.ocupacion_actual / bus.capacidad_total) * 100);
                   return (
                     <div key={bus.id} className="flex justify-between items-center px-3 py-2.5 bg-cream rounded-lg mb-2">
-                      <span className="text-sm text-forest">{bus.nombre} — {bus.parada_actual}</span>
+                      <span className="text-sm text-ink">{bus.nombre} — {bus.parada_actual}</span>
                       <span className={`text-xs px-2 py-0.5 rounded font-medium ${estiloOcupacion(bus.ocupacion_actual, bus.capacidad_total).chip}`}>
                         {pct}%
                       </span>
@@ -1201,7 +1201,7 @@ export default function RutaApp({ slug }: { slug: string }) {
                   );
                 })}
                 {busesActivos.filter((b) => b.sentido === "vuelta").length === 0 && (
-                  <p className="text-xs text-forest/40 mb-3">Ningún bus bajando ahora</p>
+                  <p className="text-xs text-ink/40 mb-3">Ningún bus bajando ahora</p>
                 )}
 
                 {busesActivos.filter((b) => b.necesita_refuerzo).map((bus) => {
@@ -1228,12 +1228,12 @@ export default function RutaApp({ slug }: { slug: string }) {
 
                 {salidas.length > 0 && (
                   <div className="mt-4 pt-3 border-t border-forest/10">
-                    <p className="text-xs text-forest/50 mb-2">Salidas recientes</p>
+                    <p className="text-xs text-ink/50 mb-2">Salidas recientes</p>
                     {salidas.map((s) => (
                       <div key={`${s.id}-${s.at}`} className="flex justify-between items-center text-xs px-3 py-2 bg-cream rounded-lg mb-1.5">
-                        <span className="text-forest">{s.nombre} · {s.sentido === "vuelta" ? "bajando" : "subiendo"}</span>
+                        <span className="text-ink">{s.nombre} · {s.sentido === "vuelta" ? "bajando" : "subiendo"}</span>
                         <span className={`font-medium ${
-                          s.gapMin === null ? "text-forest/40"
+                          s.gapMin === null ? "text-ink/40"
                           : s.gapMin >= 30 ? "text-terracotta-dark"
                           : s.gapMin >= 20 ? "text-mustard-dark"
                           : "text-teal-dark"

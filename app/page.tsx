@@ -46,7 +46,7 @@ export default function Home() {
           <button
             onDoubleClick={() => router.push("/admin?full=1")}
             style={{ touchAction: "manipulation" }}
-            className="font-display font-semibold text-lg text-forest select-none"
+            className="font-display font-semibold text-lg text-ink select-none"
           >
             Next Route
           </button>
@@ -58,10 +58,10 @@ export default function Home() {
         <span className="inline-block text-xs font-semibold tracking-widest uppercase text-terracotta bg-terracotta/10 px-3 py-1 rounded-full mb-5">
           Mérida, Venezuela
         </span>
-        <h1 className="font-display text-3xl sm:text-4xl text-forest leading-tight mb-3">
+        <h1 className="font-display text-3xl sm:text-4xl text-ink leading-tight mb-3">
           Elige tu ruta
         </h1>
-        <p className="text-forest/60 mb-6 max-w-xl">
+        <p className="text-ink/60 mb-6 max-w-xl">
           Next Route rastrea buses en tiempo real, ruta por ruta.
         </p>
 
@@ -86,15 +86,15 @@ export default function Home() {
                 <span className="w-2 h-2 rounded-full bg-teal animate-pulse"></span>
                 <span className="text-xs font-medium text-teal-dark uppercase tracking-wide">En vivo</span>
               </div>
-              <h2 className="font-display text-xl text-forest mb-1">{r.nombre}</h2>
-              {r.descripcion && <p className="text-sm text-forest/60">{r.descripcion}</p>}
+              <h2 className="font-display text-xl text-ink mb-1">{r.nombre}</h2>
+              {r.descripcion && <p className="text-sm text-ink/60">{r.descripcion}</p>}
             </Link>
           ))}
         </div>
       </div>
 
       <footer className="border-t border-forest/10 py-8">
-        <div className="max-w-4xl mx-auto px-6 text-center text-xs text-forest/40">
+        <div className="max-w-4xl mx-auto px-6 text-center text-xs text-ink/40">
           Next Route · Construido por Ismael Fermín,{" "}
           <span onDoubleClick={() => router.push("/admin")} style={{ touchAction: "manipulation" }}>
             administrador

@@ -40,7 +40,7 @@ export default function Ajustes({
         onClick={() => setAbierto((v) => !v)}
         aria-label="Ajustes"
         style={{ touchAction: "manipulation" }}
-        className="w-9 h-9 rounded-full border border-forest/20 flex items-center justify-center text-forest hover:bg-forest/5 transition shrink-0"
+        className="w-9 h-9 rounded-full border border-forest/20 flex items-center justify-center text-ink hover:bg-forest/5 transition shrink-0"
       >
         ⚙️
       </button>
@@ -48,20 +48,20 @@ export default function Ajustes({
         <div className="absolute right-0 mt-2 w-64 bg-paper border border-forest/10 rounded-xl shadow-lg p-2 z-50">
           <button
             onClick={alternarTema}
-            className="w-full flex items-center justify-between text-sm text-forest px-3 py-2.5 rounded-lg hover:bg-forest/5 transition"
+            className="w-full flex items-center justify-between text-sm text-ink px-3 py-2.5 rounded-lg hover:bg-forest/5 transition"
           >
             <span>{tema === "oscuro" ? "🌙 Modo oscuro" : "☀️ Modo claro"}</span>
-            <span className="text-xs text-forest/50">Cambiar</span>
+            <span className="text-xs text-ink/50">Cambiar</span>
           </button>
           {huella?.soportada && (
             <>
               <div className="h-px bg-forest/10 my-1" />
               {huella.activa ? (
-                <p className="text-xs text-forest/50 px-3 py-2">👆 Huella / Face ID activada</p>
+                <p className="text-xs text-ink/50 px-3 py-2">👆 Huella / Face ID activada</p>
               ) : (
                 <button
                   onClick={huella.onActivar}
-                  className="w-full flex items-center justify-between text-sm text-forest px-3 py-2.5 rounded-lg hover:bg-forest/5 transition"
+                  className="w-full flex items-center justify-between text-sm text-ink px-3 py-2.5 rounded-lg hover:bg-forest/5 transition"
                 >
                   <span>👆 Huella / Face ID</span>
                   <span className="text-xs font-medium text-teal-dark">Activar</span>

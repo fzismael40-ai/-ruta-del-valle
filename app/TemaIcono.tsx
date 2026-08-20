@@ -24,7 +24,7 @@ export default function TemaIcono() {
       onClick={alternar}
       aria-label={tema === "oscuro" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
       style={{ touchAction: "manipulation" }}
-      className="w-9 h-9 rounded-full border border-forest/20 flex items-center justify-center text-forest hover:bg-forest/5 transition shrink-0"
+      className="w-9 h-9 rounded-full border border-forest/20 flex items-center justify-center text-ink hover:bg-forest/5 transition shrink-0"
     >
       {tema === "oscuro" ? "🌙" : "☀️"}
     </button>
