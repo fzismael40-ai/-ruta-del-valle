@@ -298,6 +298,14 @@ export default function RutaApp({ slug }: { slug: string }) {
     }
   };
 
+  // Igual que "Salir de la línea" del piloto: fin de turno del coordinador
+  // cierra su sesión, para que la próxima vez tenga que volver a poner la
+  // clave o la huella.
+  const cerrarSesionCoordinador = () => {
+    localStorage.removeItem(`coordinador-verificacion-${slug}`);
+    setVerificacionCoordinador(null);
+  };
+
   useEffect(() => {
     const t = setInterval(() => setAhora(Date.now()), 15000);
     return () => clearInterval(t);
@@ -1277,6 +1285,12 @@ export default function RutaApp({ slug }: { slug: string }) {
                     ))}
                   </div>
                 )}
+                <button
+                  onClick={cerrarSesionCoordinador}
+                  className="w-full mt-4 py-2 rounded-full border border-forest/20 text-ink/60 hover:bg-forest/5 transition text-xs font-medium"
+                >
+                  Salir (fin de turno)
+                </button>
                   </>
                 )}
               </div>
