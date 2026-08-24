@@ -119,6 +119,10 @@ export default function RutaApp({ slug }: { slug: string }) {
   const [ubicacionActiva, setUbicacionActiva] = useState(false);
   const [ubicacionError, setUbicacionError] = useState<string | null>(null);
   const ultimoEnvioUbicacionRef = useRef(0);
+  // Distingue un clic (volver al inicio) de un doble clic (entrar al panel)
+  // en el logo: espera un poco antes de navegar, por si llega un segundo
+  // clic.
+  const clicLogoRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Empieza en modo web (con presentación) en ambos lados para evitar un
   // desajuste de hidratación; se confirma el modo app instalada después del
   // primer render, cuando ya se puede consultar display-mode con seguridad.
@@ -207,6 +211,20 @@ export default function RutaApp({ slug }: { slug: string }) {
     setMensajeInstalacion(
       "En iPhone: toca el ícono de compartir (⬆) en Safari y elige \"Agregar a pantalla de inicio\". En Android, desde el menú (⋮) elige \"Instalar app\"."
     );
+  };
+
+  const clicLogo = () => {
+    if (clicLogoRef.current) {
+      // Llegó un segundo clic a tiempo: es un doble clic, lo maneja
+      // onDoubleClick — este clic sencillo no navega a ningún lado.
+      clearTimeout(clicLogoRef.current);
+      clicLogoRef.current = null;
+      return;
+    }
+    clicLogoRef.current = setTimeout(() => {
+      clicLogoRef.current = null;
+      router.push("/");
+    }, 260);
   };
 
   const marcarBusVerificado = (bus: Bus) => {
@@ -821,6 +839,7 @@ export default function RutaApp({ slug }: { slug: string }) {
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
+              onClick={clicLogo}
               onDoubleClick={() => router.push("/admin?full=1")}
               style={{ touchAction: "manipulation" }}
               className="font-display font-semibold text-lg text-ink select-none"
