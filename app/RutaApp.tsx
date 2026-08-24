@@ -837,7 +837,10 @@ export default function RutaApp({ slug }: { slug: string }) {
     <>
       <header className="sticky top-0 z-30 backdrop-blur border-b border-forest/10" style={{background:"color-mix(in srgb, var(--color-cream) 90%, transparent)"}}>
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="text-ink/50 hover:text-ink transition text-lg" aria-label="Volver al inicio">
+              &larr;
+            </Link>
             <button
               onClick={clicLogo}
               onDoubleClick={() => router.push("/admin?full=1")}
