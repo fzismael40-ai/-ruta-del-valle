@@ -125,9 +125,15 @@ export default function AdminPage() {
     }
     const lista = (data as Ruta[]) ?? [];
     setRutas(lista);
-    const completo = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("full") === "1";
+    const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+    const completo = params?.get("full") === "1";
+    // Si se entró con doble clic en el logo de una ruta puntual (?ruta=<slug>),
+    // esa es la que hay que seleccionar — no la primera de la lista, que
+    // puede no ser en la que estaba parado el usuario.
+    const slugPedido = params?.get("ruta");
+    const porSlug = slugPedido ? lista.find((r) => r.slug === slugPedido)?.id ?? null : null;
     setRutaSeleccionadaId((prev) =>
-      prev && lista.some((r) => r.id === prev) ? prev : completo ? lista[0]?.id ?? null : null
+      prev && lista.some((r) => r.id === prev) ? prev : porSlug ?? (completo ? lista[0]?.id ?? null : null)
     );
   };
 

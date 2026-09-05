@@ -80,6 +80,8 @@ export default function RutaApp({ slug }: { slug: string }) {
   const [role, setRole] = useState<"pasajero" | "piloto" | "coordinador">("pasajero");
   const [buses, setBuses] = useState<Bus[]>([]);
   const [paradas, setParadas] = useState<Parada[]>([]);
+  const [sinConexionParadas, setSinConexionParadas] = useState(false);
+  const [sinConexionBuses, setSinConexionBuses] = useState(false);
   const [ahora, setAhora] = useState(() => Date.now());
   const [busSeleccionadoId, setBusSeleccionadoId] = useState<string | null>(null);
   const [salidas, setSalidas] = useState<
@@ -331,13 +333,30 @@ export default function RutaApp({ slug }: { slug: string }) {
 
   useEffect(() => {
     if (!resuelta) return;
+    let cancelado = false;
+    let reintento: ReturnType<typeof setTimeout> | null = null;
     const fetchParadas = async () => {
       let q = supabase.from("paradas").select("*");
       if (rutaId) q = q.eq("ruta_id", rutaId);
-      const { data } = await q;
-      if (data) setParadas(data as Parada[]);
+      const { data, error } = await q;
+      if (cancelado) return;
+      if (data) {
+        setParadas(data as Parada[]);
+        setSinConexionParadas(false);
+        return;
+      }
+      // Sin internet real (wifi/datos débiles) o falla momentánea de Supabase:
+      // se avisa en vez de quedar en blanco sin explicación, y se reintenta solo.
+      if (error) {
+        setSinConexionParadas(true);
+        reintento = setTimeout(fetchParadas, 5000);
+      }
     };
     fetchParadas();
+    return () => {
+      cancelado = true;
+      if (reintento) clearTimeout(reintento);
+    };
   }, [resuelta, rutaId]);
 
   useEffect(() => {
@@ -397,11 +416,23 @@ export default function RutaApp({ slug }: { slug: string }) {
 
   useEffect(() => {
     if (!resuelta) return;
+    let cancelado = false;
+    let reintento: ReturnType<typeof setTimeout> | null = null;
     const fetchBuses = async () => {
       let q = supabase.from("buses").select("*");
       if (rutaId) q = q.eq("ruta_id", rutaId);
-      const { data } = await q.order("nombre");
-      if (!data) return;
+      const { data, error } = await q.order("nombre");
+      if (cancelado) return;
+      if (!data) {
+        // Sin internet real o falla momentánea: se avisa y se reintenta solo,
+        // en vez de dejar la lista de unidades en blanco sin explicación.
+        if (error) {
+          setSinConexionBuses(true);
+          reintento = setTimeout(fetchBuses, 5000);
+        }
+        return;
+      }
+      setSinConexionBuses(false);
       const nuevos = data as Bus[];
       const prevMap = prevBusesRef.current;
 
@@ -464,6 +495,8 @@ export default function RutaApp({ slug }: { slug: string }) {
       .subscribe();
 
     return () => {
+      cancelado = true;
+      if (reintento) clearTimeout(reintento);
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -843,7 +876,7 @@ export default function RutaApp({ slug }: { slug: string }) {
             </Link>
             <button
               onClick={clicLogo}
-              onDoubleClick={() => router.push("/admin?full=1")}
+              onDoubleClick={() => router.push(`/admin?full=1&ruta=${encodeURIComponent(slug)}`)}
               style={{ touchAction: "manipulation" }}
               className="font-display font-semibold text-lg text-ink select-none"
             >
@@ -1028,6 +1061,12 @@ export default function RutaApp({ slug }: { slug: string }) {
             <button onClick={() => setRole("piloto")} className={`role-btn px-4 py-2 rounded-full text-sm font-medium border border-white/20 text-white ${role==="piloto" ? "active" : ""}`}>Piloto</button>
             <button onClick={() => setRole("coordinador")} className={`role-btn px-4 py-2 rounded-full text-sm font-medium border border-white/20 text-white ${role==="coordinador" ? "active" : ""}`}>Coordinador</button>
           </div>
+
+          {(sinConexionParadas || sinConexionBuses) && (
+            <div className="max-w-xs mx-auto mb-4 bg-mustard/20 text-mustard-dark text-xs rounded-lg px-3 py-2 text-center">
+              📶 Sin conexión — reintentando...
+            </div>
+          )}
 
           <div className="flex justify-center">
             <div className="phone p-4">
